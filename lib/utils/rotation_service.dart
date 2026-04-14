@@ -1,10 +1,10 @@
 // utils/rotation_service.dart
-// Handles all auto-population and round-robin rotation logic,
-// mirroring the Spring Boot automation rules.
+// All scheduling logic mirrors the FLUTTER_APP_REFERENCE.md specification exactly.
 
 import 'package:intl/intl.dart';
 
 import '../database/database_helper.dart';
+import '../models/conductor.dart';
 import '../models/ward_config.dart';
 
 class RotationService {
@@ -13,90 +13,210 @@ class RotationService {
 
   // ── Date helpers ─────────────────────────────────────────────────────
 
-  /// Next occurrence of [weekday] (DateTime.monday=1 … DateTime.sunday=7).
-  static DateTime nextWeekday(int weekday) {
-    final now = DateTime.now();
-    int daysAhead = weekday - now.weekday;
-    if (daysAhead <= 0) daysAhead += 7;
-    return DateTime(now.year, now.month, now.day + daysAhead);
+  /// Next Sunday on or after today (today if today is Sunday).
+  static DateTime nextSacramentDate() {
+    final today = DateTime.now();
+    final daysToSunday = today.weekday == DateTime.sunday
+        ? 0
+        : DateTime.sunday - today.weekday;
+    return DateTime(today.year, today.month, today.day + daysToSunday);
   }
 
-  static DateTime nextSunday() => nextWeekday(DateTime.sunday);
-  static DateTime nextThursday() => nextWeekday(DateTime.thursday);
+  /// Next preferred day strictly in the future — never today.
+  static DateTime nextBishopricDate(WardConfig cfg) {
+    final today = DateTime.now();
+    final target = _dayNumber(cfg.bishopricPreferredDay);
+    int daysUntil = (target - today.weekday + 7) % 7;
+    if (daysUntil == 0) daysUntil = 7; // skip today
+    return DateTime(today.year, today.month, today.day + daysUntil);
+  }
 
-  /// Returns the next 1st-or-3rd Sunday from today.
-  static DateTime next1st3rdSunday() {
-    DateTime candidate = nextSunday();
-    for (int i = 0; i < 5; i++) {
-      final week = (candidate.day - 1) ~/ 7 + 1;
-      if (week == 1 || week == 3) return candidate;
+  static int _dayNumber(String day) {
+    switch (day) {
+      case 'Monday':    return DateTime.monday;
+      case 'Tuesday':   return DateTime.tuesday;
+      case 'Wednesday': return DateTime.wednesday;
+      case 'Thursday':  return DateTime.thursday;
+      case 'Friday':    return DateTime.friday;
+      case 'Saturday':  return DateTime.saturday;
+      default:          return DateTime.sunday;
+    }
+  }
+
+  /// Next Sunday matching ward_council_occurrences (e.g. "1,3").
+  static DateTime nextWardCouncilDate(WardConfig cfg) {
+    final occurrences = cfg.wardCouncilOccurrences
+        .split(',')
+        .map((s) => int.tryParse(s.trim()) ?? 1)
+        .toList();
+    var candidate = nextSacramentDate();
+    for (int i = 0; i < 8; i++) {
+      if (occurrences.contains(getSundayOccurrence(candidate))) {
+        return candidate;
+      }
       candidate = candidate.add(const Duration(days: 7));
     }
     return candidate;
   }
 
-  static DateTime next2nd4thSunday() {
-    DateTime candidate = nextSunday();
-    for (int i = 0; i < 5; i++) {
-      final week = (candidate.day - 1) ~/ 7 + 1;
-      if (week == 2 || week == 4) return candidate;
-      candidate = candidate.add(const Duration(days: 7));
+  /// Which occurrence (1st, 2nd … 5th) of the month is this Sunday?
+  static int getSundayOccurrence(DateTime date) => (date.day - 1) ~/ 7 + 1;
+
+  /// 3-month cycle number (1, 2, or 3) for the given date.
+  static int getSpeakerCycleNumber(DateTime date, String baseMonth) {
+    final parts = baseMonth.split('-');
+    final baseYear = int.parse(parts[0]);
+    final baseMonthNum = int.parse(parts[1]);
+    final elapsed =
+        (date.year - baseYear) * 12 + (date.month - baseMonthNum);
+    return ((elapsed % 3) + 3) % 3 + 1;
+  }
+
+  /// Maps a speaker type label to an auxiliary DB name for auto-fill.
+  /// Returns null for Fast & Testimony (whole ward — no specific auxiliary).
+  /// All other labels already match the auxiliary name exactly.
+  static String? speakerLabelToAuxiliary(String label) {
+    if (label == 'Fast & Testimony') return null;
+    return label; // label matches auxiliary name exactly
+  }
+
+  /// Human-readable speaker type label for a given Sunday.
+  /// Rules: 1st→Fast & Testimony, 3rd→Stake leaders, 5th→Bishopric,
+  /// 2nd/4th→configurable auxiliary cycle slots.
+  static String getSpeakerTypeLabel(DateTime sunday, WardConfig cfg) {
+    final occurrence = getSundayOccurrence(sunday);
+    switch (occurrence) {
+      case 1:
+        return 'Fast & Testimony';
+      case 3:
+        return 'Stake leaders';
+      case 5:
+        return 'Bishopric';
+      case 2:
+        final cycle2 =
+            getSpeakerCycleNumber(sunday, cfg.speakerCycleBaseMonth);
+        if (cycle2 == 1) return cfg.cycle2Slot1;
+        if (cycle2 == 2) return cfg.cycle2Slot2;
+        return cfg.cycle2Slot3;
+      default: // 4th Sunday
+        final cycle4 =
+            getSpeakerCycleNumber(sunday, cfg.speakerCycleBaseMonth);
+        if (cycle4 == 1) return cfg.cycle4Slot1;
+        if (cycle4 == 2) return cfg.cycle4Slot2;
+        return cfg.cycle4Slot3;
     }
-    return candidate;
+  }
+
+  /// Round-robin: next conductor after lastUsedId.
+  static Conductor? getSuggestedConductor(
+      List<Conductor> conductors, int? lastUsedId) {
+    if (conductors.isEmpty) return null;
+    if (lastUsedId == null) return conductors.first;
+    final lastIndex =
+        conductors.indexWhere((c) => c.id == lastUsedId);
+    if (lastIndex < 0) return conductors.first;
+    final nextIndex = (lastIndex + 1) % conductors.length;
+    return conductors[nextIndex];
+  }
+
+  /// Returns 3 consecutive different indices after baseIdx.
+  static List<int> nextThreeIndices(int listLength, int? baseIdx) {
+    if (listLength == 0) return [];
+    final base = baseIdx ?? -1;
+    return [
+      (base + 1) % listLength,
+      (base + 2) % listLength,
+      (base + 3) % listLength,
+    ];
+  }
+
+  /// Acknowledgement template substitution.
+  static String buildAcknowledgement(
+    String template,
+    String conducting,
+    List<Conductor> sacramentConductors,
+    List<Conductor> bishopricConductors,
+  ) {
+    final otherConductors = sacramentConductors
+        .where((c) =>
+            c.name.toLowerCase() != conducting.toLowerCase())
+        .map((c) => c.name)
+        .join(', ');
+
+    final bishopIdx = bishopricConductors.indexWhere(
+        (c) => c.name.toLowerCase().startsWith('bishop'));
+    final bishopName =
+        bishopIdx >= 0 ? bishopricConductors[bishopIdx].name : '';
+
+    final bishopricOthers = bishopricConductors
+        .where((c) =>
+            c.name != bishopName &&
+            c.name.toLowerCase() != conducting.toLowerCase())
+        .map((c) => c.name)
+        .join(', ');
+
+    return template
+        .replaceAll('{OTHER_CONDUCTORS}', otherConductors)
+        .replaceAll('{BISHOPRIC_OTHERS}', bishopricOthers);
   }
 
   // ── Sacrament auto-populate ──────────────────────────────────────────
+  // Note: sacrament conductor index is advanced on EXPORT, not on form load.
 
   Future<Map<String, dynamic>> autoPopulateSacrament() async {
     final cfg = await _db.getWardConfig();
-    final conductors = await _db.getConductors(programType: 'sacrament');
-    final speakers = await _db.getSpeakerEntries();
+    final sacramentConductors =
+        await _db.getConductors(programType: 'sacrament');
+    final bishopricConductors =
+        await _db.getConductors(programType: 'bishopric');
 
-    // Date
-    DateTime date;
-    switch (cfg.sacramentSchedule) {
-      case '1ST_3RD':
-        date = next1st3rdSunday();
-        break;
-      case '2ND_4TH':
-        date = next2nd4thSunday();
-        break;
-      default:
-        date = nextSunday();
-    }
+    final date = nextSacramentDate();
 
-    // Conducting (round-robin)
-    String conducting = '';
-    if (conductors.isNotEmpty) {
-      final idx = cfg.speakerCycleIndex % conductors.length;
-      conducting = conductors[idx].name;
-    }
+    // Suggested conductor (round-robin, no DB write on load)
+    final suggested = getSuggestedConductor(
+        sacramentConductors, cfg.lastSacramentConductorId);
+    final conducting = suggested?.name ?? '';
 
-    // Presiding (Bishop by default)
-    String presiding = cfg.bishopricPresiding;
+    // Presiding: use bishopName from config; fallback to first "Bishop*" conductor
+    final presiding = cfg.bishopName.isNotEmpty
+        ? cfg.bishopName
+        : () {
+            final bishopEntry = bishopricConductors.firstWhere(
+              (c) => c.name.toLowerCase().startsWith('bishop'),
+              orElse: () => Conductor(name: '', displayOrder: 0, programType: 'bishopric'),
+            );
+            return bishopEntry.name;
+          }();
 
-    // Acknowledgement template
-    String ack = cfg.acknowledgementTemplate;
+    // Acknowledgement
+    final ack = buildAcknowledgement(
+      cfg.acknowledgementTemplate,
+      conducting,
+      sacramentConductors,
+      bishopricConductors,
+    );
 
-    // Speaker suggestions (next 2 in cycle)
-    List<String> suggestedSpeakers = [];
-    if (speakers.isNotEmpty) {
-      final idx = cfg.speakerCycleIndex % speakers.length;
-      suggestedSpeakers = [
-        speakers[idx].name,
-        if (speakers.length > 1) speakers[(idx + 1) % speakers.length].name,
-      ];
-    }
+    // Speaker type label for badge + auxiliary auto-fill
+    final speakerTypeLabel = getSpeakerTypeLabel(date, cfg);
+    final speakerAuxiliary = speakerLabelToAuxiliary(speakerTypeLabel);
 
     return {
-      'date': date,
+      'date': date.toIso8601String().split('T').first,
       'presiding': presiding,
       'conducting': conducting,
       'acknowledgement': ack,
       'wardName': cfg.wardName,
       'stakeName': cfg.stakeName,
-      'suggestedSpeakers': suggestedSpeakers,
+      'speakerTypeLabel': speakerTypeLabel,
+      'speakerAuxiliary': speakerAuxiliary,
     };
+  }
+
+  /// Called on export — advances the sacrament conductor round-robin.
+  Future<void> markSacramentConductorUsed(int conductorId) async {
+    final cfg = await _db.getWardConfig();
+    await _db.saveWardConfig(
+        cfg.copyWith(lastSacramentConductorId: conductorId));
   }
 
   // ── Bishopric auto-populate ──────────────────────────────────────────
@@ -105,36 +225,50 @@ class RotationService {
     final cfg = await _db.getWardConfig();
     final conductors = await _db.getConductors(programType: 'bishopric');
 
-    // Date
-    DateTime date;
-    switch (cfg.bishopricSchedule) {
-      case 'EVERY_MONDAY':
-        date = nextWeekday(DateTime.monday);
-        break;
-      default:
-        date = nextThursday();
+    final date = nextBishopricDate(cfg);
+
+    // Presiding: use bishopName from config; fallback to first "Bishop*" conductor
+    final presiding = cfg.bishopName.isNotEmpty
+        ? cfg.bishopName
+        : () {
+            final bishopEntry = conductors.firstWhere(
+              (c) => c.name.toLowerCase().startsWith('bishop'),
+              orElse: () => Conductor(name: '', displayOrder: 0, programType: 'bishopric'),
+            );
+            return bishopEntry.name;
+          }();
+
+    // Conducting (round-robin, advance immediately per spec)
+    final suggested =
+        getSuggestedConductor(conductors, cfg.lastBishopricConductorId);
+    final conducting = suggested?.name ?? '';
+    if (suggested?.id != null) {
+      await _db.saveWardConfig(
+          cfg.copyWith(lastBishopricConductorId: suggested!.id));
     }
 
-    // Presiding is always the Bishop
-    String presiding = cfg.bishopricPresiding;
-
-    // Opening prayer (round-robin, no duplicate with closing)
+    // Three consecutive indices for prayer/handbook
+    final idxs = nextThreeIndices(conductors.length, cfg.bpHandbookIdx);
     String openingPrayer = '';
+    String handbookSpiritual = '';
     String closingPrayer = '';
-    if (conductors.length >= 2) {
-      final openIdx = cfg.bishopricPrayerIndex % conductors.length;
-      final closeIdx = (openIdx + 1) % conductors.length;
-      openingPrayer = conductors[openIdx].name;
-      closingPrayer = conductors[closeIdx].name;
-    } else if (conductors.length == 1) {
-      openingPrayer = conductors[0].name;
+    if (idxs.length == 3) {
+      openingPrayer = conductors[idxs[0]].name;
+      handbookSpiritual = conductors[idxs[1]].name;
+      closingPrayer = conductors[idxs[2]].name;
+      // Save last index (idxs[2]) back to DB
+      final updatedCfg = await _db.getWardConfig();
+      await _db.saveWardConfig(
+          updatedCfg.copyWith(bpHandbookIdx: idxs[2]));
     }
 
     return {
-      'meetingDate': date,
+      'meetingDate': date.toIso8601String().split('T').first,
       'presiding': presiding,
+      'conducting': conducting,
       'wardName': cfg.wardName,
       'openingPrayer': openingPrayer,
+      'handbookSpiritual': handbookSpiritual,
       'closingPrayer': closingPrayer,
     };
   }
@@ -143,84 +277,50 @@ class RotationService {
 
   Future<Map<String, dynamic>> autoPopulateWardCouncil() async {
     final cfg = await _db.getWardConfig();
+    final conductors = await _db.getConductors(programType: 'bishopric');
     final auxiliaries = await _db.getAuxiliaries();
-    final handbooks = await _db.getHandbookReadings();
 
-    DateTime date;
-    switch (cfg.wardCouncilSchedule) {
-      case 'EVERY_SUNDAY_AFTER':
-        date = nextSunday();
-        break;
-      default:
-        date = nextSunday();
+    final date = nextWardCouncilDate(cfg);
+
+    // Presiding: first conductor named "Bishop*"
+    final bishopEntry = conductors.firstWhere(
+      (c) => c.name.toLowerCase().startsWith('bishop'),
+      orElse: () => Conductor(name: '', displayOrder: 0, programType: 'bishopric'),
+    );
+    final presiding = bishopEntry.name;
+
+    // Conducting (round-robin, advance immediately)
+    final suggested =
+        getSuggestedConductor(conductors, cfg.lastBishopricConductorId);
+    final conducting = suggested?.name ?? '';
+    if (suggested?.id != null) {
+      await _db.saveWardConfig(
+          cfg.copyWith(lastBishopricConductorId: suggested!.id));
     }
 
-    // Opening prayer (round-robin from auxiliaries)
+    // Three indices from auxiliaries for prayer/handbook
+    final idxs = nextThreeIndices(auxiliaries.length, cfg.wcHandbookIdx);
     String openingPrayer = '';
-    String closingPrayer = '';
-    if (auxiliaries.length >= 2) {
-      final openIdx = cfg.wcOpeningPrayerIndex % auxiliaries.length;
-      // Closing prayer index must not collide with opening
-      int closeIdx = cfg.wcClosingPrayerIndex % auxiliaries.length;
-      if (closeIdx == openIdx) closeIdx = (openIdx + 1) % auxiliaries.length;
-      openingPrayer = auxiliaries[openIdx].name;
-      closingPrayer = auxiliaries[closeIdx].name;
-    } else if (auxiliaries.length == 1) {
-      openingPrayer = auxiliaries[0].name;
-    }
-
-    // Handbook reading (round-robin)
     String handbookReading = '';
-    if (handbooks.isNotEmpty) {
-      final idx = cfg.wcHandbookIndex % handbooks.length;
-      handbookReading = handbooks[idx].display;
+    String closingPrayer = '';
+    if (idxs.length == 3) {
+      openingPrayer = auxiliaries[idxs[0]].name;
+      handbookReading = auxiliaries[idxs[1]].name;
+      closingPrayer = auxiliaries[idxs[2]].name;
+      final updatedCfg = await _db.getWardConfig();
+      await _db.saveWardConfig(
+          updatedCfg.copyWith(wcHandbookIdx: idxs[2]));
     }
 
     return {
-      'meetingDate': date,
+      'meetingDate': date.toIso8601String().split('T').first,
       'wardName': cfg.wardName,
-      'presiding': cfg.bishopricPresiding,
+      'presiding': presiding,
+      'conducting': conducting,
       'openingPrayer': openingPrayer,
-      'closingPrayer': closingPrayer,
       'handbookReading': handbookReading,
+      'closingPrayer': closingPrayer,
     };
-  }
-
-  // ── Advance rotation indices ─────────────────────────────────────────
-
-  Future<void> advanceSpeakerCycle() async {
-    final cfg = await _db.getWardConfig();
-    final speakers = await _db.getSpeakerEntries();
-    if (speakers.isEmpty) return;
-    await _db.saveWardConfig(cfg.copyWith(
-      speakerCycleIndex: (cfg.speakerCycleIndex + 1) % speakers.length,
-    ));
-  }
-
-  Future<void> advanceBishopricPrayer() async {
-    final cfg = await _db.getWardConfig();
-    final conductors = await _db.getConductors(programType: 'bishopric');
-    if (conductors.isEmpty) return;
-    await _db.saveWardConfig(cfg.copyWith(
-      bishopricPrayerIndex:
-          (cfg.bishopricPrayerIndex + 1) % conductors.length,
-    ));
-  }
-
-  Future<void> advanceWardCouncilRotation() async {
-    final cfg = await _db.getWardConfig();
-    final auxiliaries = await _db.getAuxiliaries();
-    final handbooks = await _db.getHandbookReadings();
-    if (auxiliaries.isEmpty) return;
-    await _db.saveWardConfig(cfg.copyWith(
-      wcOpeningPrayerIndex:
-          (cfg.wcOpeningPrayerIndex + 1) % auxiliaries.length,
-      wcClosingPrayerIndex:
-          (cfg.wcClosingPrayerIndex + 2) % auxiliaries.length,
-      wcHandbookIndex: handbooks.isEmpty
-          ? 0
-          : (cfg.wcHandbookIndex + 1) % handbooks.length,
-    ));
   }
 
   static String formatDate(DateTime d) =>

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -24,6 +25,73 @@ class SacramentPreviewScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Program saved to history')),
       );
+    }
+  }
+
+  Future<void> _saveToDownloads(BuildContext context) async {
+    try {
+      // Request permission on Android
+      if (Platform.isAndroid) {
+        PermissionStatus status;
+        // API 30+ requires MANAGE_EXTERNAL_STORAGE
+        final manageStatus = await Permission.manageExternalStorage.status;
+        if (manageStatus.isGranted) {
+          status = manageStatus;
+        } else {
+          // Try legacy storage first (API < 30)
+          final legacy = await Permission.storage.request();
+          if (legacy.isGranted) {
+            status = legacy;
+          } else {
+            status = await Permission.manageExternalStorage.request();
+          }
+        }
+        if (!status.isGranted) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Storage permission needed to save to Downloads'),
+                action: SnackBarAction(
+                  label: 'Settings',
+                  onPressed: openAppSettings,
+                ),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      final bytes = await PdfGenerator.sacrament(program);
+      final dateStr = DateFormat('yyyy-MM-dd').format(program.date);
+      final fileName = 'sacrament_${program.wardName.replaceAll(' ', '_')}_$dateStr.pdf';
+
+      late File file;
+      if (Platform.isAndroid) {
+        final downloadsDir = Directory('/storage/emulated/0/Download');
+        if (!await downloadsDir.exists()) await downloadsDir.create(recursive: true);
+        file = File('${downloadsDir.path}/$fileName');
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        file = File('${dir.path}/$fileName');
+      }
+
+      await file.writeAsBytes(bytes);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved: $fileName'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
     }
   }
 
@@ -91,6 +159,14 @@ class SacramentPreviewScreen extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     ElevatedButton.icon(
+                      onPressed: () => _saveToDownloads(context),
+                      icon: const Icon(Icons.download),
+                      label: const Text('Save to Downloads'),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1565C0),
+                          foregroundColor: Colors.white),
+                    ),
+                    ElevatedButton.icon(
                       onPressed: () => _save(context),
                       icon: const Icon(Icons.save),
                       label: const Text('Save'),
@@ -108,11 +184,7 @@ class SacramentPreviewScreen extends StatelessWidget {
                       icon: const Icon(Icons.share),
                       label: const Text('Share PDF'),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () => _exportDocx(context),
-                      icon: const Icon(Icons.description),
-                      label: const Text('Export DOCX'),
-                    ),
+
                   ],
                 ),
               ),
@@ -144,80 +216,86 @@ class SacramentPreviewScreen extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 16, color: Color(0xFF2E7D32)),
                     ),
-                    Text(dateStr,
-                        style: const TextStyle(fontSize: 14)),
                     const Divider(
                         height: 24,
                         color: Color(0xFF2E7D32),
                         thickness: 1.5),
 
-                    _row2('Presiding', program.presiding, 'Conducting',
-                        program.conducting),
+                    _labelVal('Date', dateStr),
+                    _labelVal('Presiding', program.presiding),
+                    _labelVal('Conducting', program.conducting),
+                    if (program.acknowledgement.isNotEmpty)
+                      _labelVal('Acknowledgement', program.acknowledgement),
+                    if (program.announcements
+                        .where((a) => a.isNotEmpty)
+                        .isNotEmpty) ...[
+                      const _SectionHeader(
+                          'Announcements', Color(0xFF2E7D32)),
+                      ...program.announcements
+                          .where((a) => a.isNotEmpty)
+                          .toList()
+                          .asMap()
+                          .entries
+                          .map((e) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 2),
+                                child: Text('${e.key + 1}. ${e.value}',
+                                    style: const TextStyle(fontSize: 13)),
+                              )),
+                    ],
                     _divider(),
-                    _row2('Chorister', program.chorister, 'Pianist',
-                        program.pianist),
-                    _divider(),
-                    _row2('Opening Hymn', program.openingHymn,
-                        'Sacrament Hymn', program.sacramentHymn),
-                    _labelVal('Closing Hymn', program.closingHymn),
-                    _divider(),
+                    if (program.chorister.isNotEmpty ||
+                        program.pianist.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Center(
+                          child: Text(
+                            'Chorister: ${program.chorister}   |   Pianist: ${program.pianist}',
+                            style: const TextStyle(fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    _labelVal('Opening Hymn', program.openingHymn),
                     _labelVal('Invocation', program.invocation),
                     if (program.wardBusiness.isNotEmpty)
                       _labelVal('Ward Business', program.wardBusiness),
                     if (program.stakeBusiness.isNotEmpty)
                       _labelVal('Stake Business', program.stakeBusiness),
-
+                    _labelVal('Sacrament Hymn', program.sacramentHymn),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        'Thank you for your reverence during the sacrament, and thank you to the priesthood brethren who bless and passed the bread and water. You may now join your family.',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey[600]),
+                      ),
+                    ),
                     if (program.speakers.isNotEmpty) ...[
                       const _SectionHeader(
                           'Speakers', Color(0xFF2E7D32)),
-                      if (program.speakersAuxiliary.isNotEmpty)
-                        _labelVal('Auxiliary', program.speakersAuxiliary),
-                      ...program.speakers.map((s) => Padding(
+                      ...program.speakers.asMap().entries.map((e) => Padding(
                             padding:
                                 const EdgeInsets.symmetric(vertical: 3),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text('${s.name}  –  ${s.title}',
-                                      style: const TextStyle(fontSize: 14)),
-                                ),
-                                if (s.topic.isNotEmpty)
-                                  Text('(${s.topic})',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                          fontStyle: FontStyle.italic)),
-                              ],
+                            child: Text(
+                              '${_ordinal(e.key + 1)} speaker: ${e.value.name}',
+                              style: const TextStyle(fontSize: 14),
                             ),
                           )),
                     ],
-                    _divider(),
+                    _labelVal('Closing Hymn', program.closingHymn),
                     _labelVal('Benediction', program.benediction),
-                    if (program.acknowledgement.isNotEmpty)
-                      _labelVal(
-                          'Acknowledgement', program.acknowledgement),
-                    if (program.announcements.isNotEmpty) ...[
-                      const _SectionHeader(
-                          'Announcements', Color(0xFF2E7D32)),
-                      ...program.announcements
-                          .where((a) => a.isNotEmpty)
-                          .map((a) => Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 2),
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('• ',
-                                        style: TextStyle(fontSize: 13)),
-                                    Expanded(
-                                        child: Text(a,
-                                            style: const TextStyle(
-                                                fontSize: 13))),
-                                  ],
-                                ),
-                              )),
-                    ],
+                    _divider(),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'Sacrament Attendance: ________',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey[700]),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -264,6 +342,12 @@ class SacramentPreviewScreen extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: 4),
         child: Divider(color: Colors.grey, height: 1),
       );
+
+  static String _ordinal(int n) {
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    final mod = n % 100;
+    return '$n${(mod >= 11 && mod <= 13) ? 'th' : suffixes[n % 10 < 4 ? n % 10 : 0]}';
+  }
 }
 
 class _SectionHeader extends StatelessWidget {

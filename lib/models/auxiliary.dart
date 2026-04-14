@@ -22,8 +22,9 @@ class Auxiliary {
     'Bishopric',
     'Elders Quorum',
     'Relief Society',
-    'Sunday School',
+    'Youth',
     'Primary',
+    'Sunday School',
     'Ward Mission & Family History',
     'Stake leaders',
   ];

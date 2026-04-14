@@ -97,7 +97,7 @@ if (-not (Test-Path $KeyProperties)) {
 storePassword=$storePassPlain
 keyPassword=$keyPassPlain
 keyAlias=upload
-storeFile=..\upload-keystore.jks
+storeFile=../../upload-keystore.jks
 "@ | Set-Content $KeyProperties -Encoding UTF8
 
     Write-Host "Keystore created: $KeystoreJks" -ForegroundColor Green
@@ -128,10 +128,13 @@ if (-not (Test-Path $BuiltApk)) {
 
 if (-not (Test-Path $OutputDir)) { New-Item -ItemType Directory $OutputDir | Out-Null }
 
-$Version  = (& $Flutter --version --machine 2>$null | ConvertFrom-Json).flutterVersion
-$Stamp    = Get-Date -Format "yyyyMMdd"
-$DestName = "ChurchProgramGenerator-v$Stamp.apk"
+$DestName = "p3ProgramGenerator.apk"
 $DestPath = Join-Path $OutputDir $DestName
+
+# Also place a renamed copy alongside the original flutter-apk output
+$FlutterApkDir     = Join-Path $ProjectRoot "build\app\outputs\flutter-apk"
+$RenamedFlutterApk = Join-Path $FlutterApkDir $DestName
+Copy-Item $BuiltApk $RenamedFlutterApk -Force
 
 Copy-Item $BuiltApk $DestPath -Force
 

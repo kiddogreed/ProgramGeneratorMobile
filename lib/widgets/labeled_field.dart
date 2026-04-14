@@ -2,6 +2,7 @@
 // A simple labeled text field used in all program forms.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class LabeledField extends StatelessWidget {
   final String label;
@@ -10,6 +11,7 @@ class LabeledField extends StatelessWidget {
   final int maxLines;
   final int? maxLength;
   final TextInputType keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final String? Function(String?)? validator;
   final bool enabled;
 
@@ -21,6 +23,7 @@ class LabeledField extends StatelessWidget {
     this.maxLines = 1,
     this.maxLength,
     this.keyboardType = TextInputType.text,
+    this.inputFormatters,
     this.validator,
     this.enabled = true,
   });
@@ -37,6 +40,7 @@ class LabeledField extends StatelessWidget {
           maxLines: maxLines,
           maxLength: maxLength,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           enabled: enabled,
           decoration: InputDecoration(hintText: hint),
           validator: validator,

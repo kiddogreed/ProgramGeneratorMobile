@@ -35,57 +35,80 @@ class PdfGenerator {
   // ── Sacrament Meeting ──────────────────────────────────────────────────
 
   static Future<Uint8List> sacrament(SacramentProgram p,
-      {bool singlePage = false, String? logoPath}) async {
+      {bool singlePage = true, String? logoPath}) async {
     final doc = pw.Document();
     final dateStr = DateFormat('MMMM d, yyyy').format(p.date);
     final logo = await _loadLogo(logoPath);
 
     final widgets = [
-        _churchHeader(p.stakeName, p.wardName, 'Sacrament Meeting', dateStr,
-            _green, logo: logo),
-        pw.SizedBox(height: 10),
-        _row2('Presiding', p.presiding, 'Conducting', p.conducting),
-        pw.SizedBox(height: 6),
-        _row2('Chorister', p.chorister, 'Pianist', p.pianist),
-        pw.SizedBox(height: 6),
-        _row2('Opening Hymn', p.openingHymn, 'Sacrament Hymn',
-            p.sacramentHymn),
-        pw.SizedBox(height: 6),
-        _labelValue('Closing Hymn', p.closingHymn),
-        _divider(),
-        _labelValue('Invocation', p.invocation),
-        if (p.wardBusiness.isNotEmpty)
-          _labelValue('Ward Business', p.wardBusiness),
-        if (p.stakeBusiness.isNotEmpty)
-          _labelValue('Stake Business', p.stakeBusiness),
-        _divider(),
-        if (p.speakers.isNotEmpty) ...[
-          _sectionTitle('Speakers', _green),
-          if (p.speakersAuxiliary.isNotEmpty)
-            _labelValue('Auxiliary', p.speakersAuxiliary),
-          ...p.speakers.map((s) => pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                child: pw.Row(children: [
-                  pw.Expanded(
-                      child: pw.Text('${s.name}  –  ${s.title}',
-                          style: const pw.TextStyle(fontSize: 11))),
-                  if (s.topic.isNotEmpty)
-                    pw.Text('(${s.topic})',
-                        style: pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey600,
-                            fontStyle: pw.FontStyle.italic)),
-                ]),
-              )),
-          _divider(),
+      _churchHeader(p.stakeName, p.wardName, 'Sacrament Program', '',
+          _green, logo: logo),
+      _labelValue('Date', dateStr),
+      _labelValue('Presiding', p.presiding),
+      _labelValue('Conducting', p.conducting),
+      if (p.acknowledgement.isNotEmpty)
+        _labelValue('Acknowledgement', p.acknowledgement),
+      if (p.announcements.where((a) => a.isNotEmpty).isNotEmpty) ...[
+        _sectionTitle('Announcements', _green),
+        ...p.announcements
+            .where((a) => a.isNotEmpty)
+            .toList()
+            .asMap()
+            .entries
+            .map((e) => pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 2),
+                  child: pw.Text('${e.key + 1}. ${e.value}',
+                      style: const pw.TextStyle(fontSize: 10)),
+                )),
+      ],
+      _divider(),
+      if (p.chorister.isNotEmpty || p.pianist.isNotEmpty)
+        pw.Center(
+          child: pw.Text(
+            'Chorister: ${p.chorister}   |   Pianist: ${p.pianist}',
+            style: const pw.TextStyle(fontSize: 11),
+          ),
+        ),
+      pw.SizedBox(height: 4),
+      _labelValue('Opening Hymn', p.openingHymn),
+      _labelValue('Invocation', p.invocation),
+      if (p.wardBusiness.isNotEmpty)
+        _labelValue('Ward Business', p.wardBusiness),
+      if (p.stakeBusiness.isNotEmpty)
+        _labelValue('Stake Business', p.stakeBusiness),
+      _labelValue('Sacrament Hymn', p.sacramentHymn),
+      pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 4),
+        child: pw.Text(
+          'Thank you for your reverence during the sacrament, and thank you to the priesthood brethren who bless and passed the bread and water. You may now join your family.',
+          style: pw.TextStyle(
+              fontSize: 9,
+              fontStyle: pw.FontStyle.italic,
+              color: PdfColors.grey600),
+        ),
+      ),
+      if (p.speakers.isNotEmpty) ...[
+        _sectionTitle('Speakers:', _green),
+        ...p.speakers.asMap().entries.map((e) => pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 3),
+              child: pw.Text(
+                '${_ordinal(e.key + 1)} speaker: ${e.value.name}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+            )),
+        pw.SizedBox(height: 4),
+      ],
+      _labelValue('Closing Hymn', p.closingHymn),
+      _labelValue('Benediction', p.benediction),
+      _divider(),
+      pw.Spacer(),
+      pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.end,
+        children: [
+          pw.Text('Sacrament Attendance: ________',
+              style: const pw.TextStyle(fontSize: 10)),
         ],
-        _labelValue('Benediction', p.benediction),
-        if (p.acknowledgement.isNotEmpty)
-          _labelValue('Acknowledgement', p.acknowledgement),
-        if (p.announcements.isNotEmpty) ...[
-          _sectionTitle('Announcements', _green),
-          ...p.announcements.map((a) => pw.Bullet(text: a)),
-        ],
+      ),
     ];
 
     _addPage(doc, widgets, singlePage: singlePage);
@@ -95,93 +118,89 @@ class PdfGenerator {
   // ── Bishopric Meeting ──────────────────────────────────────────────────
 
   static Future<Uint8List> bishopric(BishopricProgram p,
-      {bool singlePage = false, String? logoPath}) async {
+      {bool singlePage = true, String? logoPath}) async {
     final doc = pw.Document();
     final dateStr = DateFormat('MMMM d, yyyy').format(p.meetingDate);
     final logo = await _loadLogo(logoPath);
 
-    doc.addPage(pw.MultiPage(
-      pageFormat: PdfPageFormat.letter,
-      margin: const pw.EdgeInsets.all(36),
-      build: (ctx) => [
-        _churchHeader('', p.wardName, 'Bishopric Meeting', dateStr, _red,
-            logo: logo),
-        pw.SizedBox(height: 10),
-        _row2('Presiding', p.presiding, 'Conducting', p.conducting),
-        _divider(),
-        _labelValue('Opening Prayer', p.openingPrayer),
-        if (p.handbookSpiritual.isNotEmpty)
-          _labelValue('Handbook / Spiritual Thought', p.handbookSpiritual),
-        _divider(),
-        _sectionTitle('Agenda', _red),
-        ...p.agendaItems.map((item) => pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(item.title,
-                    style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold, fontSize: 11)),
-                ...item.details.map((d) => pw.Padding(
-                      padding:
-                          const pw.EdgeInsets.only(left: 12, top: 2),
-                      child: pw.Bullet(text: d),
-                    )),
-                pw.SizedBox(height: 4),
-              ],
-            )),
-        _divider(),
-        if (p.callingsAndReleases.isNotEmpty)
-          _labelValue('Callings & Releases', p.callingsAndReleases),
-        _labelValue('Closing Prayer', p.closingPrayer),
-      ],
-    ));
+    final widgets = <pw.Widget>[
+      _churchHeader('', p.wardName, 'Bishopric Meeting', dateStr, _red,
+          logo: logo),
+      pw.SizedBox(height: 6),
+      _row2('Presiding', p.presiding, 'Conducting', p.conducting),
+      _divider(),
+      _labelValue('Opening Prayer', p.openingPrayer),
+      if (p.handbookSpiritual.isNotEmpty)
+        _labelValue('Handbook / Spiritual Thought', p.handbookSpiritual),
+      _divider(),
+      _sectionTitle('Agenda', _red),
+      ...p.agendaItems.map((item) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(item.title,
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 11)),
+              ...item.details.map((d) => pw.Padding(
+                    padding:
+                        const pw.EdgeInsets.only(left: 12, top: 2),
+                    child: pw.Bullet(text: d),
+                  )),
+              pw.SizedBox(height: 4),
+            ],
+          )),
+      _divider(),
+      if (p.callingsAndReleases.isNotEmpty)
+        _labelValue('Callings & Releases', p.callingsAndReleases),
+      _labelValue('Closing Prayer', p.closingPrayer),
+      pw.Spacer(),
+    ];
 
+    _addPage(doc, widgets, singlePage: singlePage);
     return doc.save();
   }
 
   // ── Ward Council ───────────────────────────────────────────────────────
 
   static Future<Uint8List> wardCouncil(WardCouncilProgram p,
-      {bool singlePage = false, String? logoPath}) async {
+      {bool singlePage = true, String? logoPath}) async {
     final doc = pw.Document();
     final dateStr = DateFormat('MMMM d, yyyy').format(p.meetingDate);
     final logo = await _loadLogo(logoPath);
 
-    doc.addPage(pw.MultiPage(
-      pageFormat: PdfPageFormat.letter,
-      margin: const pw.EdgeInsets.all(36),
-      build: (ctx) => [
-        _churchHeader('', p.wardName, 'Ward Council Meeting', dateStr, _purple,
-            logo: logo),
-        pw.SizedBox(height: 10),
-        _row2('Presiding', p.presiding, 'Conducting', p.conducting),
-        _divider(),
-        _labelValue('Opening Prayer', p.openingPrayer),
-        if (p.handbookReading.isNotEmpty)
-          _labelValue('Handbook Reading', p.handbookReading),
-        if (p.auxiliary.isNotEmpty)
-          _labelValue('Reporting Auxiliary', p.auxiliary),
-        _divider(),
-        _sectionTitle('Agenda', _purple),
-        ...p.agendaItems.map((item) => pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(item.title,
-                    style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold, fontSize: 11)),
-                ...item.details.map((d) => pw.Padding(
-                      padding:
-                          const pw.EdgeInsets.only(left: 12, top: 2),
-                      child: pw.Bullet(text: d),
-                    )),
-                pw.SizedBox(height: 4),
-              ],
-            )),
-        _divider(),
-        if (p.welfare.isNotEmpty) _labelValue('Welfare', p.welfare),
-        _labelValue('Closing Prayer', p.closingPrayer),
-      ],
-    ));
+    final widgets = <pw.Widget>[
+      _churchHeader('', p.wardName, 'Ward Council Meeting', dateStr, _purple,
+          logo: logo),
+      pw.SizedBox(height: 6),
+      _row2('Presiding', p.presiding, 'Conducting', p.conducting),
+      _divider(),
+      _labelValue('Opening Prayer', p.openingPrayer),
+      if (p.handbookReading.isNotEmpty)
+        _labelValue('Handbook Reading', p.handbookReading),
+      if (p.auxiliary.isNotEmpty)
+        _labelValue('Reporting Auxiliary', p.auxiliary),
+      _divider(),
+      _sectionTitle('Agenda', _purple),
+      ...p.agendaItems.map((item) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(item.title,
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 11)),
+              ...item.details.map((d) => pw.Padding(
+                    padding:
+                        const pw.EdgeInsets.only(left: 12, top: 2),
+                    child: pw.Bullet(text: d),
+                  )),
+              pw.SizedBox(height: 4),
+            ],
+          )),
+      _divider(),
+      if (p.welfare.isNotEmpty) _labelValue('Welfare', p.welfare),
+      _labelValue('Closing Prayer', p.closingPrayer),
+      pw.Spacer(),
+    ];
 
+    _addPage(doc, widgets, singlePage: singlePage);
     return doc.save();
   }
 
@@ -197,8 +216,8 @@ class PdfGenerator {
       ));
     } else {
       doc.addPage(pw.Page(
-        pageFormat: PdfPageFormat.letter,
-        margin: const pw.EdgeInsets.all(28),
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
         build: (ctx) {
           final availH = ctx.page.pageFormat.availableHeight;
           final availW = ctx.page.pageFormat.availableWidth;
@@ -250,7 +269,7 @@ class PdfGenerator {
                 fontSize: 14,
                 fontWeight: pw.FontWeight.bold,
                 color: _navy)),
-        pw.Text(date, style: const pw.TextStyle(fontSize: 12)),
+        if (date.isNotEmpty) pw.Text(date, style: const pw.TextStyle(fontSize: 12)),
         pw.Divider(color: color, thickness: 1.5),
       ],
     );
@@ -301,5 +320,11 @@ class PdfGenerator {
       pw.SizedBox(width: 10),
       pw.Expanded(child: _labelValue(l2, v2)),
     ]);
+  }
+
+  static String _ordinal(int n) {
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    final mod = n % 100;
+    return '$n${(mod >= 11 && mod <= 13) ? 'th' : suffixes[n % 10 < 4 ? n % 10 : 0]}';
   }
 }

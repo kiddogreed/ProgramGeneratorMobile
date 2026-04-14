@@ -15,7 +15,7 @@ import '../models/speaker_entry.dart';
 
 class DatabaseHelper {
   static const _dbName = 'church_programs.db';
-  static const _dbVersion = 2; // bumped from 1 → 2
+  static const _dbVersion = 4; // v4: bishop_name + cycle slot columns
 
   // Singleton pattern
   static DatabaseHelper? _instance;
@@ -97,25 +97,35 @@ class DatabaseHelper {
   }
 
   Future<void> _createNewTables(Database db) async {
-    // Ward config (singleton row)
+    // Ward config (singleton row) — v3 schema
     await db.execute('''
       CREATE TABLE IF NOT EXISTS ward_config (
-        id                     INTEGER PRIMARY KEY,
-        ward_name              TEXT NOT NULL DEFAULT 'Pasay 3rd Ward',
-        stake_name             TEXT NOT NULL DEFAULT 'Pasay Philippines Stake',
-        meeting_time           TEXT NOT NULL DEFAULT '9:00 AM',
-        logo_path              TEXT NOT NULL DEFAULT 'assets/images/P3_LOGO.png',
-        sacrament_schedule     TEXT NOT NULL DEFAULT 'EVERY_SUNDAY',
-        speaker_cycle_json     TEXT NOT NULL DEFAULT '[]',
-        speaker_cycle_index    INTEGER NOT NULL DEFAULT 0,
-        acknowledgement_template TEXT NOT NULL DEFAULT 'We acknowledge those who have attended from other wards and stakes.',
-        bishopric_schedule     TEXT NOT NULL DEFAULT 'EVERY_THURSDAY',
-        bishopric_presiding    TEXT NOT NULL DEFAULT 'The Bishop',
-        bishopric_prayer_index INTEGER NOT NULL DEFAULT 0,
-        ward_council_schedule  TEXT NOT NULL DEFAULT 'EVERY_SUNDAY_AFTER',
-        wc_opening_prayer_index INTEGER NOT NULL DEFAULT 0,
-        wc_closing_prayer_index INTEGER NOT NULL DEFAULT 0,
-        wc_handbook_index      INTEGER NOT NULL DEFAULT 0
+        id                         INTEGER PRIMARY KEY DEFAULT 1,
+        stake_name                 TEXT NOT NULL DEFAULT 'Pasay Philippine Stake',
+        ward_name                  TEXT NOT NULL DEFAULT 'Pasay 3rd Ward',
+        acknowledgement_template   TEXT NOT NULL DEFAULT '',
+        sacrament_time             TEXT NOT NULL DEFAULT '09:00',
+        bishopric_preferred_day    TEXT NOT NULL DEFAULT 'Thursday',
+        bishopric_thursday_time    TEXT NOT NULL DEFAULT '19:00',
+        bishopric_sunday_time      TEXT NOT NULL DEFAULT '12:00',
+        ward_council_occurrences   TEXT NOT NULL DEFAULT '1,3',
+        ward_council_time          TEXT NOT NULL DEFAULT '11:00',
+        speaker_cycle_base_month   TEXT NOT NULL DEFAULT '2026-01',
+        cycle2_slot1               TEXT NOT NULL DEFAULT 'Relief Society',
+        cycle2_slot2               TEXT NOT NULL DEFAULT 'Elders Quorum',
+        cycle2_slot3               TEXT NOT NULL DEFAULT 'Ward Mission & Family History',
+        cycle4_slot1               TEXT NOT NULL DEFAULT 'Sunday School',
+        cycle4_slot2               TEXT NOT NULL DEFAULT 'Primary',
+        cycle4_slot3               TEXT NOT NULL DEFAULT 'Youth',
+        bishop_name                TEXT NOT NULL DEFAULT 'Bishop Sherwin Tan',
+        last_sacrament_conductor_id INTEGER,
+        last_bishopric_conductor_id INTEGER,
+        wc_opening_prayer_idx      INTEGER,
+        wc_closing_prayer_idx      INTEGER,
+        wc_handbook_idx            INTEGER,
+        bp_opening_prayer_idx      INTEGER,
+        bp_closing_prayer_idx      INTEGER,
+        bp_handbook_idx            INTEGER
       )
     ''');
 
@@ -184,6 +194,55 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await _createNewTables(db);
       await _seedNewTables(db);
+    }
+    if (oldVersion < 3) {
+      // Drop old ward_config and recreate with new schema
+      await db.execute('DROP TABLE IF EXISTS ward_config');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ward_config (
+          id                         INTEGER PRIMARY KEY DEFAULT 1,
+          stake_name                 TEXT NOT NULL DEFAULT \'Pasay Philippine Stake\',
+          ward_name                  TEXT NOT NULL DEFAULT \'Pasay 3rd Ward\',
+          acknowledgement_template   TEXT NOT NULL DEFAULT \'\',
+          sacrament_time             TEXT NOT NULL DEFAULT \'09:00\',
+          bishopric_preferred_day    TEXT NOT NULL DEFAULT \'Thursday\',
+          bishopric_thursday_time    TEXT NOT NULL DEFAULT \'19:00\',
+          bishopric_sunday_time      TEXT NOT NULL DEFAULT \'12:00\',
+          ward_council_occurrences   TEXT NOT NULL DEFAULT \'1,3\',
+          ward_council_time          TEXT NOT NULL DEFAULT \'11:00\',
+          speaker_cycle_base_month   TEXT NOT NULL DEFAULT \'2026-01\',
+          cycle2_slot1               TEXT NOT NULL DEFAULT \'Relief Society\',
+          cycle2_slot2               TEXT NOT NULL DEFAULT \'Elders Quorum\',
+          cycle2_slot3               TEXT NOT NULL DEFAULT \'Ward Mission & Family History\',
+          cycle4_slot1               TEXT NOT NULL DEFAULT \'Sunday School\',
+          cycle4_slot2               TEXT NOT NULL DEFAULT \'Primary\',
+          cycle4_slot3               TEXT NOT NULL DEFAULT \'Youth\',
+          bishop_name                TEXT NOT NULL DEFAULT \'Bishop Sherwin Tan\',
+          last_sacrament_conductor_id INTEGER,
+          last_bishopric_conductor_id INTEGER,
+          wc_opening_prayer_idx      INTEGER,
+          wc_closing_prayer_idx      INTEGER,
+          wc_handbook_idx            INTEGER,
+          bp_opening_prayer_idx      INTEGER,
+          bp_closing_prayer_idx      INTEGER,
+          bp_handbook_idx            INTEGER
+        )
+      ''');
+      // Re-seed with new defaults
+      final existing = await db.query('ward_config', limit: 1);
+      if (existing.isEmpty) {
+        await db.insert('ward_config', WardConfig().toMap()..['id'] = 1);
+      }
+    }
+    if (oldVersion < 4) {
+      // Add new columns to existing ward_config
+      await db.execute("ALTER TABLE ward_config ADD COLUMN cycle2_slot1 TEXT NOT NULL DEFAULT 'Relief Society'");
+      await db.execute("ALTER TABLE ward_config ADD COLUMN cycle2_slot2 TEXT NOT NULL DEFAULT 'Elders Quorum'");
+      await db.execute("ALTER TABLE ward_config ADD COLUMN cycle2_slot3 TEXT NOT NULL DEFAULT 'Ward Mission & Family History'");
+      await db.execute("ALTER TABLE ward_config ADD COLUMN cycle4_slot1 TEXT NOT NULL DEFAULT 'Sunday School'");
+      await db.execute("ALTER TABLE ward_config ADD COLUMN cycle4_slot2 TEXT NOT NULL DEFAULT 'Primary'");
+      await db.execute("ALTER TABLE ward_config ADD COLUMN cycle4_slot3 TEXT NOT NULL DEFAULT 'Youth'");
+      await db.execute("ALTER TABLE ward_config ADD COLUMN bishop_name TEXT NOT NULL DEFAULT 'Bishop Sherwin Tan'");
     }
   }
 
@@ -268,6 +327,12 @@ class DatabaseHelper {
   Future<int> insertAuxiliary(Auxiliary a) async {
     final db = await database;
     return db.insert('auxiliaries', a.toMap());
+  }
+
+  Future<void> updateAuxiliary(Auxiliary a) async {
+    final db = await database;
+    await db.update('auxiliaries', a.toMap(),
+        where: 'id = ?', whereArgs: [a.id]);
   }
 
   Future<void> deleteAuxiliary(int id) async {

@@ -10,7 +10,9 @@ import 'admin/musician_admin_screen.dart';
 import 'admin/conductor_admin_screen.dart';
 import 'admin/hymn_admin_screen.dart';
 import 'admin/handbook_admin_screen.dart';
+import 'admin/auxiliary_admin_screen.dart';
 import 'admin/speaker_list_admin_screen.dart';
+import 'admin/seed_defaults_screen.dart';
 import 'rules/rules_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -137,6 +139,18 @@ class HomeScreen extends StatelessWidget {
                     builder: (_) => const ConductorAdminScreen()),
               ),
             ),
+            const SizedBox(height: 10),
+            _NavTile(
+              icon: Icons.groups,
+              title: 'Auxiliary Management',
+              subtitle: 'Add / edit / remove auxiliaries',
+              color: const Color(0xFF00838F),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const AuxiliaryAdminScreen()),
+              ),
+            ),
 
             const SizedBox(height: 20),
             const _SectionLabel(label: 'Hymns & Speakers'),
@@ -174,6 +188,22 @@ class HomeScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const SpeakerListAdminScreen()),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            const _SectionLabel(label: 'Setup'),
+            const SizedBox(height: 8),
+
+            _NavTile(
+              icon: Icons.upload_outlined,
+              title: 'Default Data Setup',
+              subtitle: 'Pre-load ward members, bishopric, musicians & auxiliaries',
+              color: const Color(0xFF37474F),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const SeedDefaultsScreen()),
               ),
             ),
 

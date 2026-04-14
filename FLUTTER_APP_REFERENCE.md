@@ -24,6 +24,7 @@
 14. [Navigation](#14-navigation)
 15. [UI/UX Requirements](#15-uiux-requirements)
 16. [Recommended Packages](#16-recommended-packages)
+17. [Document Visual Design Reference](#17-document-visual-design-reference)
 
 ---
 
@@ -600,48 +601,174 @@ Every export must save the program to `saved_programs` table before triggering t
 
 ## 10. Export: PDF, DOCX, PNG
 
-### PDF (Sacrament, Bishopric)
-- Use the `pdf` Dart package to build a multi-section document
-- **Sacrament PDF layout** (top to bottom):
-  1. Logo (LDS_LOGO.png) centered, 80×80 pt
-  2. Stake name (large, centered)
-  3. Ward name (large, centered)
-  4. Date (centered)
-  5. Presiding / Conducting row
-  6. Chorister / Pianist row
-  7. Hymns (Opening, Sacrament, Closing)
-  8. Invocation
-  9. Speakers section (each speaker: Name, auxiliary, title)
-  10. Announcements (bulleted)
-  11. Ward/Stake Business
-  12. Benediction
-  13. Acknowledgement (italic, small)
-- **Bishopric PDF layout**:
-  1. Logo centered
-  2. Ward name header
-  3. Meeting date
-  4. Formal table or sections: Presiding, Conducting, Opening Prayer, Handbook Spiritual Thought
-  5. Agenda Items (numbered list)
-  6. Callings & Releases
-  7. Closing Prayer
-  8. Footer with date and ward name
-- Font auto-scales: if combined text is long, reduce font size proportionally to fit one page
-- All text is dynamic — no hardcoded words except structural labels ("Presiding:", "Conducting:", etc.)
+All three meeting types produce pixel-perfect documents that match the Spring Boot server output exactly. Section 17 contains visual samples and design positions. The specifications below are derived directly from the Java source.
 
-### Word (.docx) — Optional / Best-effort
-- Use the `archive` package to create OOXML from a template
-- Alternatively, generate an RTF file which Word can open
-- Match same layout as the PDF version
+---
 
-### PNG (Ward Council)
-- Render the Ward Council program into a Flutter widget tree off-screen using `RepaintBoundary` + `RenderRepaintBoundary.toImage()`
-- Capture as PNG bytes, save and share
-- Layout should mirror the web PNG: formal table with ward name, date, presiding, conducting, prayer/handbook assignments, agenda items, welfare, closing prayer
+### 10.1 Bishopric Meeting — PDF
 
-### File Storage
-- Save exported files to the app's external storage documents directory using `path_provider` (`getExternalStorageDirectory()` or `getApplicationDocumentsDirectory()`)
-- Filename format: `{type}_{ward}_{date}.{ext}` — e.g. `sacrament_pasay3rd_2026-04-13.pdf`
-- After saving, trigger share dialog using `share_plus` so users can send it to group chats, print, etc.
+**Reference sample**: `src/reports/bishopric/BishopricMeeting03012026.png`  
+**Dart package**: `pdf` (iText equivalent)  
+**Page size**: A4 (595.28 × 841.89 pt)  
+**Margins**: 60 pt all sides (usable width ≈ 475 pt)
+
+#### Colors
+| Name | Hex | RGB |
+|---|---|---|
+| Background | `#EDE9F5` | (237, 233, 245) |
+| Navy (all text) | `#1A2E5A` | (26, 46, 90) |
+
+#### Background & Decorative Layer (drawn before content)
+- Fill entire page with `#EDE9F5`
+- Draw ornate corner-flourish border: navy `#1A2E5A`, scroll/curl motifs at all 4 corners, inset ~18 pt from page edge
+- Paint a semi-transparent Christus watermark image centered on the page (behind content)
+
+#### Content Layout (top → bottom, all centered)
+
+| # | Element | Font | Size | Notes |
+|---|---|---|---|---|
+| 1 | `LDS_LOGO.png` | — | base 78 × 78 pt | Scaled by factor `s` (see below) |
+| 2 | `"THE CHURCH OF JESUS CHRIST OF LATTER-DAY SAINTS"` | Times Roman | `8pt × s` | Navy, character-spacing 1.5, marginBottom `10pt × s` |
+| 3 | `"{WARD_NAME} WARD"` (uppercase) | Times Bold | `24pt × s` | Navy, character-spacing 2.5, marginBottom `12pt × s` |
+| 4 | `"BISHOPRIC MEETING"` | Times Bold | `14pt × s` | Navy, character-spacing 2.5, marginBottom `6pt × s` |
+| 5 | Date: `"EEEE, MMMM d, yyyy"` uppercased | Times Roman | `10pt × s` | Navy, character-spacing 1.5, marginBottom `28pt × s` |
+| 6 | **Thin horizontal divider** | — | 0.5 pt stroke | Navy, marginBottom `28pt × s` |
+| 7 | Presiding row | Times Bold (label) + Times Roman (value) | `13pt × s` | Centered, char-spacing 1, marginBottom `22pt × s` |
+| 8 | Conducting row | same | same | same |
+| 9 | Opening Prayer row | same | same | same |
+| 10 | Handbook Spiritual row | same | same | same |
+| 11 | `"• AGENDA"` header | Times Bold | bullet `16pt × s`, text `13pt × s` | Centered, char-spacing 2, marginTop `36pt × s`, marginBottom `14pt × s` |
+| 12 | Agenda item title (numbered) | Times Bold | `12pt × s` | Centered, char-spacing 1, marginBottom `6pt × s` |
+| 13 | Agenda item sub-bullet `"      • detail"` | Times Roman | `11pt × s` | Centered, char-spacing 0.8, marginBottom `5pt × s` |
+| 14 | spacer | — | marginTop `36pt × s` | before closing prayer |
+| 15 | Closing Prayer row | same as row 7 | same | marginBottom `8pt × s` |
+| 16 | `P3_LOGO.png` footer | — | base 38 × 38 pt × s | Centered, marginTop `30pt × s` |
+
+#### Adaptive Scale Factor `s`
+Computed from total character count of: presiding + conducting + all agenda item titles + all agenda item details + closing prayer.
+
+| Total chars | `s` |
+|---|---|
+| < 300 | 1.00 |
+| 300 – 600 | 0.85 |
+| 600 – 900 | 0.75 |
+| > 900 | 0.60 |
+
+---
+
+### 10.2 Ward Council Meeting — PNG
+
+**Reference sample**: `src/reports/wardcouncil/WardCouncilMeeting2026-04-11.png` (latest)  
+**Dart approach**: Render an off-screen `Widget` tree → `RepaintBoundary` → `RenderRepaintBoundary.toImage()` → PNG bytes  
+**Canvas size**: **794 × 1123 px** (A4 at 96 dpi), white background  
+**Page margins**: 50 px all sides; content width = 694 px
+
+#### Color Palette
+| Name | Hex | Use |
+|---|---|---|
+| `BROWN` | `#8B7355` | Ward name text, horizontal rule |
+| `BLUE` | `#2C5282` | "WARD COUNCIL" title |
+| `ORANGE` | `#D2691E` | "Agenda" bar label and date, separator line |
+| `TABLE_BG` | `#F4EDE3` | Label cell background |
+| `TABLE_LINE` | `#DDD0BB` | Table cell borders (1 px) |
+| `TEXT_DARK` | `#1E293B` | Value cell primary text |
+| `TEXT_GRAY` | `#4A5568` | Sub-bullet indented text in value cell |
+| `LABEL_TEXT` | `#5A3E1B` | Label cell text (dark brown) |
+
+#### Layout (top → bottom)
+
+| # | Element | Font | Size | Color | Notes |
+|---|---|---|---|---|---|
+| 1 | `LDS_LOGO_wbg.png` | — | 120 px wide, proportional height | — | Centered; y = margin + 10 |
+| 2 | Ward name | SansSerif Bold | 28 px | `BROWN` | Centered |
+| 3 | `"WARD COUNCIL"` | SansSerif Bold | 30 px | `BLUE` | Centered |
+| 4 | Horizontal rule | — | 1.5 px stroke | `BROWN` | Full content width |
+| 5 | `"Agenda"` (left) + date `"MM-dd-yy"` (right) | SansSerif Bold | 16 px | `ORANGE` | Same baseline row |
+| 6 | Thin separator line | — | 1 px | `ORANGE` | +6 px below bar |
+| 7 | **Table rows** (below) | — | — | — | two columns: label 220 px / value fills rest |
+
+#### Table Row Specification
+- **Cell padding**: 10 px horizontal, 7 px vertical
+- **Minimum row height**: 30 px; expands automatically with wrapped text
+- **Label cell**: `TABLE_BG` fill, `LABEL_TEXT` Bold 12 px; empty-value rows are **omitted entirely**
+- **Value cell**: White fill, `TEXT_DARK` Plain 12 px; text word-wrapped to fit column width
+- **Sub-bullets** (agenda item details): indented +8 px from left edge, `TEXT_GRAY` color, prefixed `"    • "`
+
+#### Row Order
+1. Presiding
+2. Conducting
+3. Opening Prayer
+4. Handbook Reading / Scriptural Thought
+5. Agenda Items _(all items + sub-bullets collapsed into one cell)_
+6. Welfare
+7. Closing Prayer
+
+#### Footer
+- `P3_LOGO.png`: 70 px wide, proportional height, centered, +18 px gap from last table row (only drawn if it fits above page bottom margin)
+
+---
+
+### 10.3 Sacrament Meeting — DOCX (and matching PDF)
+
+**Reference**: `src/reports/sacrament/sacramentProgram{date}.pdf` / `.docx`  
+**Dart approach**: Build DOCX via OOXML (`archive` package) **or** use `pdf` package with identical layout  
+**Page size**: A4  
+**Margins**: 0.4 in (≈ 28.8 pt) all sides  
+**Primary font**: Times Roman / Serif equivalent  
+**Base font size**: 11 pt (adaptive — see table below)
+
+#### Adaptive Font Size (variable-content fields only)
+Computed from total chars across: acknowledgement + announcements + ward business + stake business + all speaker names and titles.
+
+| Total chars | Font size (variable fields) |
+|---|---|
+| < 300 | 11 pt |
+| 300 – 600 | 10 pt |
+| 600 – 900 | 9 pt |
+| > 900 | 8 pt |
+
+Fixed structural labels always remain 11 pt bold regardless.
+
+#### Logo Sizes (same adaptive scale as Bishopric)
+- `LDS_LOGO.png`: base **70 × 70 pt** × scale factor
+- `P3_LOGO.png` footer: base **38 × 38 pt** × scale factor
+
+#### Complete Layout (top → bottom)
+
+| # | Element | Alignment | Style | Notes |
+|---|---|---|---|---|
+| 1 | `LDS_LOGO.png` | Centered | — | spacingAfter per scale |
+| 2 | `{Stake Name}` ↵ `{Ward Name}` ↵ `"Sacrament Program"` | Centered | Bold, 14 pt, `#2C5282` | spacingAfter 120 twips |
+| 3 | **Date** | Left | Bold "Date: " (11pt) + value | spacingAfter 100 twips |
+| 4 | **Presiding** | Left | Bold "Presiding: " + value | spacingAfter 100 twips |
+| 5 | **Conducting** | Left | Bold "Conducting: " + value | spacingAfter 160 twips |
+| 6 | **Acknowledgement** _(if present)_ | Left | Bold label + adaptive-font multi-line value | spacingAfter 120 twips |
+| 7 | **Announcements** _(if present)_ | Left | Bold "Announcements:" header; then numbered items, adaptive font | spacingAfter 60 twips per item |
+| 8 | **Chorister \| Pianist** | Centered | Bold labels + values; separator `"     \|     "` | spacingBefore 200, spacingAfter 200 twips |
+| 9 | **Opening Hymn** | Left | Bold label + value, 11 pt | spacingAfter 100 twips |
+| 10 | **Invocation** | Left | Bold label + value, 11 pt | spacingAfter 100 twips |
+| 11 | **Ward Business** _(if present)_ | Left | Bold label + adaptive-font multi-line value | spacingAfter 120 twips |
+| 12 | **Stake Business** _(if present)_ | Left | Bold label + adaptive-font multi-line value | spacingAfter 120 twips |
+| 13 | **Sacrament Hymn** | Left | Bold label + value, 11 pt | spacingAfter 100 twips |
+| 14 | Sacrament reverence note | Left | Italic, 9 pt | `"Thank you for your reverence during the sacrament, and thank you to the priesthood brethren who bless and passed the bread and water. You may now Join your family."` |
+| 15 | **Speakers header** | Left | Bold "Speakers: " + bold auxiliary name, 11 pt | spacingBefore 220 twips |
+| 16 | Each speaker row | Left | Adaptive font: `"{ordinal} speaker: {title} {name}"`; topic (if any) italic same size | spacingAfter 100 twips |
+| 17 | **Closing Hymn** | Left | Bold label + value, 11 pt | spacingBefore 220 twips, spacingAfter 100 twips |
+| 18 | **Benediction** | Left | Bold label + value, 11 pt | spacingAfter 100 twips |
+| 19 | "Sacrament Attendance:________" | Right | Bold, 11 pt | spacingBefore 240 twips |
+| 20 | `P3_LOGO.png` footer | Centered | 38 pt × scale | spacingBefore proportional |
+
+**Speaker ordinals**: 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th", 5+ → "{n}th"
+
+---
+
+### 10.4 File Storage & Naming
+
+- Save to `getApplicationDocumentsDirectory()` (or `getExternalStorageDirectory()` with permission fallback)
+- **Filename format**: `{type}_{ward}_{date}.{ext}`  
+  Examples: `sacrament_pasay3rd_2026-04-13.pdf`, `bishopric_pasay3rd_2026-03-01.pdf`, `wardcouncil_pasay3rd_2026-04-11.png`, `sacrament_pasay3rd_2026-04-13.docx`
+- After saving, call `share_plus` `Share.shareXFiles([XFile(path)])` → triggers share sheet (WhatsApp, email, print, etc.)
+- **Auto-save on export**: save program to `saved_programs` table BEFORE file generation; failure to save must not block the file export
 
 ---
 
@@ -826,6 +953,165 @@ After every add/edit/delete operation show a `SnackBar` with "Added.", "Updated.
 8. **Sacrament conductor round-robin update**: Unlike Bishopric/WC (which advance on load), the sacrament conductor index (`last_sacrament_conductor_id`) is updated only on export, not on form load.
 9. **Date format**: `meetingDate` in `saved_programs` stores as `yyyy-MM-dd` string. `createdAt` stores as ISO 8601 string.
 10. **Offline only**: No network calls. All data is local SQLite. The app must function with no internet connection.
+
+---
+
+## 17. Document Visual Design Reference
+
+This section contains annotated visual specifications derived from actual generated outputs. Flutter export widgets **must reproduce these designs exactly**.
+
+---
+
+### 17.1 Bishopric Meeting PDF — Visual Reference
+
+**Source file**: `src/reports/bishopric/BishopricMeeting03012026.png`
+
+```
+┌─────────────────────────────────────────────────────┐  ← ornate corner flourishes (navy #1A2E5A)
+│                                                     │
+│                   [LDS_LOGO.png]                    │  ← 78×78 pt, centered, top ~90 pt from top
+│                                                     │
+│   THE CHURCH OF JESUS CHRIST OF LATTER DAY SAINTS  │  ← Times Roman 8pt, char-spacing 1.5
+│                                                     │
+│              PASAY 3RD WARD                         │  ← Times Bold 24pt, char-spacing 2.5, all-caps
+│                                                     │
+│            BISHOPRIC MEETING                        │  ← Times Bold 14pt, char-spacing 2.5
+│           SUNDAY MAR 1, 2026                        │  ← Times Roman 10pt, uppercased date
+│                                                     │
+│  ─────────────────────────────────────────────────  │  ← 0.5pt navy divider line
+│                                                     │
+│        Presiding: Bishop Tan                        │  ← Times Bold label + Roman value, 13pt
+│        Conducting: Bro. John Moroni                 │  ← all details centered, marginBottom 22pt
+│        Opening Prayer: Bro. Russelle                │
+│        Handbook Spiritual: Bro. Adrian              │
+│                                                     │
+│              • AGENDA                               │  ← bullet 16pt + "AGENDA" bold 13pt, marginTop 36pt
+│                                                     │
+│           Review Past Assignments                   │  ← Times Bold 12pt, centered, numbered
+│           Welfare and Ministering                   │
+│           Auxiliary Activity                        │
+│           Callings and Releases                     │
+│                                                     │
+│        Closing Prayer: Bro. Johanne                 │  ← marginTop 36pt from last agenda item
+│                                                     │
+│                   [P3_LOGO.png]                     │  ← 38×38 pt, centered footer logo
+│                                                     │
+└─────────────────────────────────────────────────────┘  ← ornate corner flourishes
+```
+
+**Background details**:
+- Page fill: `#EDE9F5` (lavender-mauve)
+- Christus watermark image: semi-transparent, centered vertically behind content
+- Corner borders: scroll/curl ornament SVG at all 4 corners, navy, inset ~18 pt from edge
+
+---
+
+### 17.2 Ward Council PNG — Visual Reference
+
+**Source files**:  
+- `src/reports/wardcouncil/WardCouncil02012026.png` (original design)  
+- `src/reports/wardcouncil/WardCouncilMeeting2026-04-11.png` ← **use this as the definitive reference**
+
+```
+794 px wide × 1123 px tall — white background
+┌──────────────────────────────────────────────────────┐
+│                                                      │
+│            [LDS_LOGO_wbg.png — 120 px wide]          │  ← centered, y = 60 px
+│                                                      │
+│                   Pasay 3rd Ward                     │  ← SansSerif Bold 28px, #8B7355 (BROWN)
+│                    WARD COUNCIL                      │  ← SansSerif Bold 30px, #2C5282 (BLUE)
+│ ────────────────────────────────────────────────── │  ← 1.5px #8B7355 horizontal rule
+│ Agenda                              04-11-26         │  ← Bold 16px #D2691E (ORANGE), left/right
+│ ──────────────────────────────────────────────────── │  ← 1px ORANGE separator
+│                         │                            │
+│  Presiding              │  Bishop Sherwin Tan        │  ← row: label 220px / value rest
+│  ─────────────────────────────────────────────────  │  ← TABLE_LINE #DDD0BB, 1px
+│  Conducting             │  (Asst Secr) Bro. Genesis  │  ← label: Bold 12px #5A3E1B on #F4EDE3
+│  ─────────────────────────────────────────────────  │     value: Plain 12px #1E293B on white
+│  Opening Prayer         │  Elders Quorum             │
+│  ─────────────────────────────────────────────────  │
+│  Handbook Reading /     │  Elders Quorum             │
+│  Scriptural Thought     │                            │
+│  ─────────────────────────────────────────────────  │
+│  Agenda Items           │  1. test                   │  ← numbered items, sub-bullets indented
+│                         │     • asdasdas             │     +8px, TEXT_GRAY #4A5568
+│                         │     • asdasdasd            │
+│                         │  2. asdasdasd teas         │
+│  ─────────────────────────────────────────────────  │
+│  Welfare                │  asdasdasda sdasd          │
+│  ─────────────────────────────────────────────────  │
+│  Closing Prayer         │  Sunday School             │
+│                                                      │
+│                [P3_LOGO.png — 70 px]                 │  ← centered, +18px gap, only if fits
+└──────────────────────────────────────────────────────┘
+```
+
+**Important**: Empty-value rows are completely omitted (no blank row drawn). The two-column split is exactly 220 px for labels and the remaining 474 px for values.
+
+---
+
+### 17.3 Sacrament Meeting DOCX/PDF — Visual Reference
+
+**Reference**: `src/reports/sacrament/sacramentProgram{date}.pdf` / `.docx`  
+The PDF must look identical to the DOCX export.
+
+```
+┌──────────────────────────────────────────────────────┐
+│                 [LDS_LOGO.png — 70pt]                │  ← centered
+│                                                      │
+│           Pasay Philippine Stake                     │  ← 14pt Bold #2C5282, centered
+│               Pasay 3rd Ward                         │
+│            Sacrament Program                         │
+│                                                      │
+│  Date: April 13, 2026                                │  ← left-aligned, bold label + value 11pt
+│  Presiding: Bishop Sherwin Tan                       │
+│  Conducting: Bro. John Russelle Domingo              │
+│  Acknowledgement: Acknowledge Bro. …                 │  ← adaptive font, multi-line
+│                                                      │
+│  Announcements:                                      │  ← bold header
+│  1. First announcement                               │  ← numbered, adaptive font
+│  2. Second announcement                              │
+│                                                      │
+│         Chorister: Sis. Name  |  Pianist: Sis. Name  │  ← centered row, bold labels
+│                                                      │
+│  Opening Hymn: #123 Title                            │  ← left-aligned, 11pt
+│  Invocation: Bro. Name                               │
+│  Ward Business: …                                    │  ← adaptive font, if present
+│  Stake Business: …                                   │  ← adaptive font, if present
+│  Sacrament Hymn: #169 Title                          │
+│  Thank you for your reverence during the             │  ← 9pt italic note
+│  sacrament…                                          │
+│                                                      │
+│  Speakers: Relief Society                            │  ← bold "Speakers: " + bold auxiliary
+│  1st speaker: Sis. First Name — topic                │  ← adaptive font; topic italic if present
+│  2nd speaker: Bro. Second Name                       │
+│                                                      │
+│  Closing Hymn: #220 Title                            │  ← spacingBefore 220 twips
+│  Benediction: Sis. Name                              │
+│                                          Sacrament Attendance:________  │  ← right-aligned
+│                                                      │
+│                 [P3_LOGO.png — 38pt]                 │  ← centered footer
+└──────────────────────────────────────────────────────┘
+```
+
+**Key differences DOCX vs PDF**:
+- DOCX uses Apache POI `XWPFDocument`; PDF uses iText 7 `PdfDocument` (Java). Flutter must replicate layout using `pdf` (Dart) for PDF and `archive` OOXML for DOCX.
+- Both outputs use the **same content order** and the **same adaptive font-size logic**.
+- Margins: 0.4 in (28.8 pt) all sides, tight fit for one page.
+- Chorister/Pianist row uses `"     |     "` as separator — 5 spaces, pipe, 5 spaces.
+
+---
+
+### 17.4 Design Assets Summary
+
+| Asset | Used in | Expected size (base) | Notes |
+|---|---|---|---|
+| `LDS_LOGO.png` | Bishopric PDF, Sacrament DOCX/PDF | 78pt (Bishopric), 70pt (Sacrament) | White/transparent bg, temple icon |
+| `LDS_LOGO_wbg.png` | Ward Council PNG | 120 px | Has explicit white background; used in PNG renderer |
+| `P3_LOGO.png` | All three formats (footer) | 38pt (PDF), 70px (PNG) | Pasay 3rd Ward chapel icon |
+| Christus watermark | Bishopric PDF background | page-centered | Semi-transparent |
+
+All logos must be bundled in `assets/images/` in the Flutter app. Reference them via `AssetImage` or `rootBundle.load()` for export services.
 
 ---
 

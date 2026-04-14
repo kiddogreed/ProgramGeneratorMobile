@@ -57,3 +57,10 @@ android {
 flutter {
     source '../..'
 }
+
+// Rename output APK
+android.applicationVariants.all { variant ->
+    variant.outputs.all { output ->
+        outputFileName = "p3ProgramGenerator-${variant.buildType.name}.apk"
+    }
+}

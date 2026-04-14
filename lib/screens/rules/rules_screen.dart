@@ -1,10 +1,10 @@
 // screens/rules/rules_screen.dart
 // Configuration screen for automation rules and ward settings.
-// Mirrors the Spring Boot Rules tab.
+// All fields aligned to the new WardConfig model (FLUTTER_APP_REFERENCE.md).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../database/database_helper.dart';
-import '../../models/ward_config.dart';
 import '../../widgets/labeled_field.dart';
 
 class RulesScreen extends StatefulWidget {
@@ -23,26 +23,50 @@ class _RulesScreenState extends State<RulesScreen> {
   // Ward identity
   late TextEditingController _wardNameCtrl;
   late TextEditingController _stakeNameCtrl;
-  late TextEditingController _meetingTimeCtrl;
   late TextEditingController _acknowledgementCtrl;
-  late TextEditingController _bishopricPresidingCtrl;
 
-  // Schedules
-  String _sacramentSchedule = 'EVERY_SUNDAY';
-  String _bishopricSchedule = 'EVERY_THURSDAY';
-  String _wardCouncilSchedule = 'EVERY_SUNDAY_AFTER';
+  // Bishop
+  late TextEditingController _bishopNameCtrl;
 
-  // Logo
-  String _logoPath = 'assets/images/P3_LOGO.png';
+  // Sacrament
+  late TextEditingController _sacramentTimeCtrl;
+
+  // Bishopric
+  String _bishopricPreferredDay = 'Thursday';
+  late TextEditingController _bishopricThursdayTimeCtrl;
+  late TextEditingController _bishopricSundayTimeCtrl;
+
+  // Ward Council — comma-separated occurrence numbers (1..5)
+  late TextEditingController _wardCouncilOccurrencesCtrl;
+  late TextEditingController _wardCouncilTimeCtrl;
+
+  // Speaker Cycle base month
+  late TextEditingController _speakerCycleBaseMonthCtrl;
+
+  // Speaker Cycle slot assignments (2nd / 4th Sunday cycles)
+  String _cycle2Slot1 = 'Relief Society';
+  String _cycle2Slot2 = 'Elders Quorum';
+  String _cycle2Slot3 = 'Ward Mission & Family History';
+  String _cycle4Slot1 = 'Sunday School';
+  String _cycle4Slot2 = 'Primary';
+  String _cycle4Slot3 = 'Youth';
+
+  // Available auxiliaries for cycle dropdowns
+  List<String> _auxiliaryNames = [];
 
   @override
   void initState() {
     super.initState();
     _wardNameCtrl = TextEditingController();
     _stakeNameCtrl = TextEditingController();
-    _meetingTimeCtrl = TextEditingController();
     _acknowledgementCtrl = TextEditingController();
-    _bishopricPresidingCtrl = TextEditingController();
+    _bishopNameCtrl = TextEditingController();
+    _sacramentTimeCtrl = TextEditingController();
+    _bishopricThursdayTimeCtrl = TextEditingController();
+    _bishopricSundayTimeCtrl = TextEditingController();
+    _wardCouncilOccurrencesCtrl = TextEditingController();
+    _wardCouncilTimeCtrl = TextEditingController();
+    _speakerCycleBaseMonthCtrl = TextEditingController();
     _load();
   }
 
@@ -51,25 +75,42 @@ class _RulesScreenState extends State<RulesScreen> {
     for (final c in [
       _wardNameCtrl,
       _stakeNameCtrl,
-      _meetingTimeCtrl,
       _acknowledgementCtrl,
-      _bishopricPresidingCtrl,
-    ]) { c.dispose(); }
+      _bishopNameCtrl,
+      _sacramentTimeCtrl,
+      _bishopricThursdayTimeCtrl,
+      _bishopricSundayTimeCtrl,
+      _wardCouncilOccurrencesCtrl,
+      _wardCouncilTimeCtrl,
+      _speakerCycleBaseMonthCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _load() async {
     final cfg = await _db.getWardConfig();
+    final auxList = await _db.getAuxiliaries();
     setState(() {
       _wardNameCtrl.text = cfg.wardName;
       _stakeNameCtrl.text = cfg.stakeName;
-      _meetingTimeCtrl.text = cfg.meetingTime;
       _acknowledgementCtrl.text = cfg.acknowledgementTemplate;
-      _bishopricPresidingCtrl.text = cfg.bishopricPresiding;
-      _sacramentSchedule = cfg.sacramentSchedule;
-      _bishopricSchedule = cfg.bishopricSchedule;
-      _wardCouncilSchedule = cfg.wardCouncilSchedule;
-      _logoPath = cfg.logoPath;
+      _bishopNameCtrl.text = cfg.bishopName;
+      _sacramentTimeCtrl.text = cfg.sacramentTime;
+      _bishopricPreferredDay = cfg.bishopricPreferredDay;
+      _bishopricThursdayTimeCtrl.text = cfg.bishopricThursdayTime;
+      _bishopricSundayTimeCtrl.text = cfg.bishopricSundayTime;
+      _wardCouncilOccurrencesCtrl.text = cfg.wardCouncilOccurrences;
+      _wardCouncilTimeCtrl.text = cfg.wardCouncilTime;
+      _speakerCycleBaseMonthCtrl.text = cfg.speakerCycleBaseMonth;
+      _cycle2Slot1 = cfg.cycle2Slot1;
+      _cycle2Slot2 = cfg.cycle2Slot2;
+      _cycle2Slot3 = cfg.cycle2Slot3;
+      _cycle4Slot1 = cfg.cycle4Slot1;
+      _cycle4Slot2 = cfg.cycle4Slot2;
+      _cycle4Slot3 = cfg.cycle4Slot3;
+      _auxiliaryNames = auxList.map((a) => a.name).toList();
       _loading = false;
     });
   }
@@ -82,18 +123,26 @@ class _RulesScreenState extends State<RulesScreen> {
       await _db.saveWardConfig(existing.copyWith(
         wardName: _wardNameCtrl.text.trim(),
         stakeName: _stakeNameCtrl.text.trim(),
-        meetingTime: _meetingTimeCtrl.text.trim(),
         acknowledgementTemplate: _acknowledgementCtrl.text.trim(),
-        bishopricPresiding: _bishopricPresidingCtrl.text.trim(),
-        sacramentSchedule: _sacramentSchedule,
-        bishopricSchedule: _bishopricSchedule,
-        wardCouncilSchedule: _wardCouncilSchedule,
-        logoPath: _logoPath,
+        bishopName: _bishopNameCtrl.text.trim(),
+        sacramentTime: _sacramentTimeCtrl.text.trim(),
+        bishopricPreferredDay: _bishopricPreferredDay,
+        bishopricThursdayTime: _bishopricThursdayTimeCtrl.text.trim(),
+        bishopricSundayTime: _bishopricSundayTimeCtrl.text.trim(),
+        wardCouncilOccurrences: _wardCouncilOccurrencesCtrl.text.trim(),
+        wardCouncilTime: _wardCouncilTimeCtrl.text.trim(),
+        speakerCycleBaseMonth: _speakerCycleBaseMonthCtrl.text.trim(),
+        cycle2Slot1: _cycle2Slot1,
+        cycle2Slot2: _cycle2Slot2,
+        cycle2Slot3: _cycle2Slot3,
+        cycle4Slot1: _cycle4Slot1,
+        cycle4Slot2: _cycle4Slot2,
+        cycle4Slot3: _cycle4Slot3,
       ));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Rules updated successfully'),
+            content: Text('Settings saved'),
             backgroundColor: Color(0xFF2E7D32),
           ),
         );
@@ -128,7 +177,8 @@ class _RulesScreenState extends State<RulesScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.save, color: Colors.white),
-            label: const Text('Save', style: TextStyle(color: Colors.white)),
+            label: const Text('Save',
+                style: TextStyle(color: Colors.white)),
             onPressed: _saving ? null : _save,
           ),
         ],
@@ -140,135 +190,202 @@ class _RulesScreenState extends State<RulesScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // ── Ward Identity ──────────────────────────────
                   _sectionCard(
                     title: 'Ward Identity',
                     color: const Color(0xFF1B4F8A),
                     icon: Icons.church,
                     children: [
                       LabeledField(
-                        label: 'Ward Name',
+                        label: 'Ward Name *',
                         controller: _wardNameCtrl,
                         validator: (v) =>
-                            v == null || v.isEmpty ? 'Required' : null,
+                            v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
                       LabeledField(
                         label: 'Stake Name',
                         controller: _stakeNameCtrl,
                       ),
-                      LabeledField(
-                        label: 'Meeting Time',
-                        controller: _meetingTimeCtrl,
-                        hint: 'e.g. 9:00 AM',
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
+                  // ── Bishop Rule ────────────────────────────────
                   _sectionCard(
-                    title: 'Logo',
-                    color: const Color(0xFF37474F),
-                    icon: Icons.image,
+                    title: 'Bishop',
+                    color: const Color(0xFF1B5E20),
+                    icon: Icons.person,
                     children: [
-                      Text('Select which logo to display in exported documents:',
-                          style: Theme.of(context).textTheme.bodySmall),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _logoOption('P3_LOGO.png', 'Pasay 3rd Ward Logo',
-                              'assets/images/P3_LOGO.png'),
-                          const SizedBox(width: 8),
-                          _logoOption('LDS_LOGO.png', 'LDS/CoJCoLDS Logo',
-                              'assets/images/LDS_LOGO.png'),
-                        ],
+                      LabeledField(
+                        label: 'Bishop Name',
+                        controller: _bishopNameCtrl,
+                        hint: 'e.g. Bishop Sherwin Tan',
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Used to auto-fill Presiding in Sacrament & Bishopric programs.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
+                  // ── Sacrament Meeting ──────────────────────────
                   _sectionCard(
-                    title: 'Sacrament Meeting Rules',
-                    color: const Color(0xFF2E7D32),
+                    title: 'Sacrament Meeting',
+                    color: const Color(0xFF2C5282),
                     icon: Icons.menu_book,
                     children: [
-                      _dropdownRow(
-                        label: 'Meeting Schedule',
-                        value: _sacramentSchedule,
-                        items: const {
-                          'EVERY_SUNDAY': 'Every Sunday',
-                          '1ST_3RD': '1st & 3rd Sunday',
-                          '2ND_4TH': '2nd & 4th Sunday',
-                        },
-                        onChanged: (v) =>
-                            setState(() => _sacramentSchedule = v!),
+                      LabeledField(
+                        label: 'Meeting Time',
+                        controller: _sacramentTimeCtrl,
+                        hint: 'e.g. 9:00 AM',
                       ),
                       LabeledField(
                         label: 'Acknowledgement Template',
                         controller: _acknowledgementCtrl,
                         maxLines: 3,
                         hint:
-                            'Default text for the acknowledgement section',
+                            'Use {OTHER_CONDUCTORS} for sacrament members, '
+                            '{BISHOPRIC_OTHERS} for bishopric members.',
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
+                  // ── Bishopric Meeting ──────────────────────────
                   _sectionCard(
-                    title: 'Bishopric Meeting Rules',
+                    title: 'Bishopric Meeting',
                     color: const Color(0xFFC62828),
                     icon: Icons.business_center,
                     children: [
-                      _dropdownRow(
-                        label: 'Meeting Schedule',
-                        value: _bishopricSchedule,
-                        items: const {
-                          'EVERY_THURSDAY': 'Every Thursday',
-                          'EVERY_MONDAY': 'Every Monday',
-                        },
-                        onChanged: (v) =>
-                            setState(() => _bishopricSchedule = v!),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Preferred Meeting Day',
+                              style:
+                                  Theme.of(context).textTheme.labelLarge),
+                          const SizedBox(height: 4),
+                          DropdownButtonFormField<String>(
+                            value: _bishopricPreferredDay,
+                            decoration: const InputDecoration(),
+                            items: const [
+                              DropdownMenuItem(value: 'Monday',    child: Text('Monday')),
+                              DropdownMenuItem(value: 'Tuesday',   child: Text('Tuesday')),
+                              DropdownMenuItem(value: 'Wednesday', child: Text('Wednesday')),
+                              DropdownMenuItem(value: 'Thursday',  child: Text('Thursday')),
+                              DropdownMenuItem(value: 'Friday',    child: Text('Friday')),
+                              DropdownMenuItem(value: 'Saturday',  child: Text('Saturday')),
+                              DropdownMenuItem(value: 'Sunday',    child: Text('Sunday')),
+                            ],
+                            onChanged: (v) => setState(
+                                () => _bishopricPreferredDay = v!),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
                       LabeledField(
-                        label: 'Presiding (always)',
-                        controller: _bishopricPresidingCtrl,
-                        hint: 'e.g. The Bishop (read-only in form)',
+                        label: 'Thursday Meeting Time',
+                        controller: _bishopricThursdayTimeCtrl,
+                        hint: 'e.g. 7:00 PM',
+                      ),
+                      LabeledField(
+                        label: 'Sunday Meeting Time',
+                        controller: _bishopricSundayTimeCtrl,
+                        hint: 'e.g. 8:00 AM',
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
+                  // ── Ward Council Meeting ───────────────────────
                   _sectionCard(
-                    title: 'Ward Council Meeting Rules',
+                    title: 'Ward Council Meeting',
                     color: const Color(0xFF6A1B9A),
                     icon: Icons.groups,
                     children: [
-                      _dropdownRow(
-                        label: 'Meeting Schedule',
-                        value: _wardCouncilSchedule,
-                        items: const {
-                          'EVERY_SUNDAY_AFTER':
-                              'Every Sunday (after Sacrament)',
-                          'EVERY_THURSDAY': 'Every Thursday',
-                          'CUSTOM': 'Custom date',
-                        },
-                        onChanged: (v) =>
-                            setState(() => _wardCouncilSchedule = v!),
+                      LabeledField(
+                        label: 'Occurrences (comma-separated)',
+                        controller: _wardCouncilOccurrencesCtrl,
+                        hint:
+                            'e.g. 1,3  (1st and 3rd Sunday of month)',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[0-9,]')),
+                        ],
                       ),
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
+                      LabeledField(
+                        label: 'Meeting Time',
+                        controller: _wardCouncilTimeCtrl,
+                        hint: 'e.g. 12:00 PM',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Speaker Cycle ──────────────────────────────
+                  _sectionCard(
+                    title: 'Speaker Cycle',
+                    color: const Color(0xFF37474F),
+                    icon: Icons.rotate_right,
+                    children: [
+                      LabeledField(
+                        label: 'Base Month (yyyy-MM)',
+                        controller: _speakerCycleBaseMonthCtrl,
+                        hint: 'e.g. 2026-01 (month when cycle 1 starts)',
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return null;
+                          final re = RegExp(r'^\d{4}-(0[1-9]|1[0-2])$');
+                          if (!re.hasMatch(v.trim())) {
+                            return 'Enter format yyyy-MM (e.g. 2026-01)';
+                          }
+                          return null;
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 12),
                         child: Text(
-                          'Prayers and handbook reading are auto-assigned '
-                          'in round-robin order from the Auxiliaries and '
-                          'Handbook Readings lists.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          'Cycle repeats 1→2→3→1. Set the first month when cycle 1 occurred.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ),
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text('2nd Sunday Cycle Assignments',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[700])),
+                      ),
+                      _cycleDropdown('Cycle 1', _cycle2Slot1,
+                          (v) => setState(() => _cycle2Slot1 = v!)),
+                      _cycleDropdown('Cycle 2', _cycle2Slot2,
+                          (v) => setState(() => _cycle2Slot2 = v!)),
+                      _cycleDropdown('Cycle 3', _cycle2Slot3,
+                          (v) => setState(() => _cycle2Slot3 = v!)),
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6, top: 4),
+                        child: Text('4th Sunday Cycle Assignments',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[700])),
+                      ),
+                      _cycleDropdown('Cycle 1', _cycle4Slot1,
+                          (v) => setState(() => _cycle4Slot1 = v!)),
+                      _cycleDropdown('Cycle 2', _cycle4Slot2,
+                          (v) => setState(() => _cycle4Slot2 = v!)),
+                      _cycleDropdown('Cycle 3', _cycle4Slot3,
+                          (v) => setState(() => _cycle4Slot3 = v!)),
                     ],
                   ),
                   const SizedBox(height: 24),
 
                   ElevatedButton.icon(
                     icon: const Icon(Icons.save),
-                    label: const Text('Save Rules'),
+                    label: const Text('Save Settings'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1B4F8A),
                       foregroundColor: Colors.white,
@@ -276,6 +393,7 @@ class _RulesScreenState extends State<RulesScreen> {
                     ),
                     onPressed: _saving ? null : _save,
                   ),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -316,68 +434,47 @@ class _RulesScreenState extends State<RulesScreen> {
     );
   }
 
-  Widget _dropdownRow({
-    required String label,
-    required String value,
-    required Map<String, String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 4),
-        DropdownButtonFormField<String>(
-          value: value,
-          items: items.entries
-              .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-              .toList(),
-          onChanged: onChanged,
-          decoration: const InputDecoration(),
-        ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
+  static const _fastTestimony = 'Fast & Testimony';
 
-  Widget _logoOption(String filename, String label, String assetPath) {
-    final selected = _logoPath == assetPath;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _logoPath = assetPath),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFF1B4F8A)
-                  : Colors.grey.shade300,
-              width: selected ? 2 : 1,
+  Widget _cycleDropdown(String label, String value, ValueChanged<String?> onChanged) {
+    // All selectable values: Fast & Testimony sentinel first, then auxiliaries
+    final auxItems = _auxiliaryNames.isEmpty ? <String>[] : _auxiliaryNames;
+    final allValues = [_fastTestimony, ...auxItems];
+    final safeValue = allValues.contains(value) ? value : allValues.first;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 70,
+            child: Text(label,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: safeValue,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              ),
+              items: [
+                const DropdownMenuItem(
+                  value: _fastTestimony,
+                  child: Text(
+                    '— Fast & Testimony (no speaker) —',
+                    style: TextStyle(
+                        fontStyle: FontStyle.italic, color: Colors.grey),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                ...auxItems.map((n) => DropdownMenuItem(
+                    value: n,
+                    child: Text(n, overflow: TextOverflow.ellipsis))),
+              ],
+              onChanged: onChanged,
             ),
-            borderRadius: BorderRadius.circular(8),
-            color: selected
-                ? const Color(0xFF1B4F8A).withValues(alpha: 0.05)
-                : null,
           ),
-          child: Column(
-            children: [
-              Image.asset(assetPath, height: 50, errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.image, size: 50)),
-              const SizedBox(height: 4),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: selected
-                        ? const Color(0xFF1B4F8A)
-                        : Colors.grey[700],
-                  )),
-              if (selected)
-                const Icon(Icons.check_circle,
-                    color: Color(0xFF1B4F8A), size: 16),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

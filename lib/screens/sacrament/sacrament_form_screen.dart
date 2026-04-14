@@ -1,6 +1,6 @@
 // screens/sacrament/sacrament_form_screen.dart
 // Full form for creating/editing a Sacrament Meeting program.
-// Mirrors the Spring Boot sacrament.html template.
+// Fields and auto-populate logic follow FLUTTER_APP_REFERENCE.md §6.
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -9,9 +9,11 @@ import '../../database/database_helper.dart';
 import '../../models/sacrament_program.dart';
 import '../../models/musician.dart';
 import '../../models/conductor.dart';
+import '../../models/auxiliary.dart';
 import '../../models/speaker.dart';
 import '../../utils/rotation_service.dart';
 import '../../widgets/labeled_field.dart';
+import '../../widgets/speaker_cycle_badge.dart';
 import '../../widgets/speaker_list_editor.dart';
 import '../../widgets/announcements_editor.dart';
 import 'sacrament_preview_screen.dart';
@@ -34,7 +36,6 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
   late final TextEditingController _stakeNameCtrl;
   late final TextEditingController _wardNameCtrl;
   late final TextEditingController _presidingCtrl;
-  late final TextEditingController _conductingCtrl;
   late final TextEditingController _acknowledgeCtrl;
   late final TextEditingController _openingHymnCtrl;
   late final TextEditingController _sacramentHymnCtrl;
@@ -45,43 +46,49 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
   late final TextEditingController _benedictionCtrl;
 
   DateTime _meetingDate = DateTime.now();
-  String _chorister = '';
-  String _pianist = '';
-  String _speakersAuxiliary = '';
+  String? _conducting;         // selected conductor name
+  String? _chorister;
+  String? _pianist;
+  String? _speakersAuxiliary;
   List<Speaker> _speakers = [];
   List<String> _announcements = [];
+  String _speakerTypeLabel = '';
 
   List<Musician> _choristers = [];
   List<Musician> _pianists = [];
   List<Conductor> _conductors = [];
+  List<Auxiliary> _auxiliaries = [];
 
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    final p = widget.initial ?? SacramentProgram();
-    _stakeNameCtrl = TextEditingController(text: p.stakeName);
-    _wardNameCtrl = TextEditingController(text: p.wardName);
-    _presidingCtrl = TextEditingController(text: p.presiding);
-    _conductingCtrl = TextEditingController(text: p.conducting);
-    _acknowledgeCtrl = TextEditingController(text: p.acknowledgement);
-    _openingHymnCtrl = TextEditingController(text: p.openingHymn);
-    _sacramentHymnCtrl = TextEditingController(text: p.sacramentHymn);
-    _closingHymnCtrl = TextEditingController(text: p.closingHymn);
-    _invocationCtrl = TextEditingController(text: p.invocation);
-    _wardBusinessCtrl = TextEditingController(text: p.wardBusiness);
-    _stakeBusinessCtrl = TextEditingController(text: p.stakeBusiness);
-    _benedictionCtrl = TextEditingController(text: p.benediction);
+    final p = widget.initial;
+    _stakeNameCtrl = TextEditingController(text: p?.stakeName ?? '');
+    _wardNameCtrl = TextEditingController(text: p?.wardName ?? '');
+    _presidingCtrl = TextEditingController(text: p?.presiding ?? '');
+    _acknowledgeCtrl = TextEditingController(text: p?.acknowledgement ?? '');
+    _openingHymnCtrl = TextEditingController(text: p?.openingHymn ?? '');
+    _sacramentHymnCtrl = TextEditingController(text: p?.sacramentHymn ?? '');
+    _closingHymnCtrl = TextEditingController(text: p?.closingHymn ?? '');
+    _invocationCtrl = TextEditingController(text: p?.invocation ?? '');
+    _wardBusinessCtrl = TextEditingController(text: p?.wardBusiness ?? '');
+    _stakeBusinessCtrl = TextEditingController(text: p?.stakeBusiness ?? '');
+    _benedictionCtrl = TextEditingController(text: p?.benediction ?? '');
 
-    _meetingDate = p.date;
-    _chorister = p.chorister;
-    _pianist = p.pianist;
-    _speakersAuxiliary = p.speakersAuxiliary;
-    _speakers = List.from(p.speakers);
-    _announcements = List.from(p.announcements);
+    if (p != null) {
+      _meetingDate = p.date;
+      _conducting = p.conducting.isEmpty ? null : p.conducting;
+      _chorister = p.chorister.isEmpty ? null : p.chorister;
+      _pianist = p.pianist.isEmpty ? null : p.pianist;
+      _speakersAuxiliary =
+          p.speakersAuxiliary.isEmpty ? null : p.speakersAuxiliary;
+      _speakers = List.from(p.speakers);
+      _announcements = List.from(p.announcements);
+    }
 
-    _loadDropdowns();
+    _loadAll();
   }
 
   @override
@@ -90,7 +97,6 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
       _stakeNameCtrl,
       _wardNameCtrl,
       _presidingCtrl,
-      _conductingCtrl,
       _acknowledgeCtrl,
       _openingHymnCtrl,
       _sacramentHymnCtrl,
@@ -105,18 +111,104 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
     super.dispose();
   }
 
-  Future<void> _loadDropdowns() async {
+  Future<void> _loadAll() async {
     final choristers = await _db.getMusicians(type: 'chorister');
     final pianists = await _db.getMusicians(type: 'pianist');
     final conductors = await _db.getConductors(programType: 'sacrament');
-    if (mounted) {
-      setState(() {
-        _choristers = choristers;
-        _pianists = pianists;
-        _conductors = conductors;
-        _loading = false;
-      });
+    final auxiliaries = await _db.getAuxiliaries();
+
+    // Auto-populate only when creating (not loading from history)
+    if (widget.initial == null) {
+      try {
+        final data =
+            await RotationService(_db).autoPopulateSacrament();
+        if (mounted) {
+          setState(() {
+            _choristers = choristers;
+            _pianists = pianists;
+            _conductors = conductors;
+            _auxiliaries = auxiliaries;
+
+            if (data['date'] != null) {
+              _meetingDate =
+                  DateTime.tryParse(data['date'] as String) ?? _meetingDate;
+            }
+            if (data['wardName'] != null) {
+              _wardNameCtrl.text = data['wardName'] as String;
+            }
+            if (data['stakeName'] != null) {
+              _stakeNameCtrl.text = data['stakeName'] as String;
+            }
+            if (data['presiding'] != null &&
+                (data['presiding'] as String).isNotEmpty) {
+              _presidingCtrl.text = data['presiding'] as String;
+            }
+            if (data['acknowledgement'] != null) {
+              _acknowledgeCtrl.text = data['acknowledgement'] as String;
+            }
+            if (data['conducting'] != null &&
+                (data['conducting'] as String).isNotEmpty) {
+              final name = data['conducting'] as String;
+              _conducting = conductors.any((c) => c.name == name) ? name : null;
+            }
+            _speakerTypeLabel =
+                data['speakerTypeLabel'] as String? ?? '';
+            // Auto-fill the speakers' auxiliary from the cycle
+            final autoAux = data['speakerAuxiliary'] as String?;
+            if (_speakersAuxiliary == null && autoAux != null) {
+              final auxNames = auxiliaries.map((a) => a.name).toList();
+              if (auxNames.contains(autoAux)) _speakersAuxiliary = autoAux;
+            }
+            _loading = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _choristers = choristers;
+            _pianists = pianists;
+            _conductors = conductors;
+            _auxiliaries = auxiliaries;
+            _loading = false;
+          });
+        }
+      }
+    } else {
+      // Loading from history — just populate dropdowns
+      if (mounted) {
+        setState(() {
+          _choristers = choristers;
+          _pianists = pianists;
+          _conductors = conductors;
+          _auxiliaries = auxiliaries;
+          _loading = false;
+        });
+        // Compute badge label only — do NOT overwrite saved auxiliary
+        _loadSpeakerTypeLabelForDate(_meetingDate, updateAuxiliary: false);
+      }
     }
+  }
+
+  Future<void> _loadSpeakerTypeLabelForDate(DateTime date,
+      {bool updateAuxiliary = true}) async {
+    try {
+      final cfg = await _db.getWardConfig();
+      final label = RotationService.getSpeakerTypeLabel(date, cfg);
+      final autoAux = RotationService.speakerLabelToAuxiliary(label);
+      if (mounted) {
+        setState(() {
+          _speakerTypeLabel = label;
+          if (updateAuxiliary) {
+            final auxNames = _auxiliaries.map((a) => a.name).toList();
+            if (autoAux != null && auxNames.contains(autoAux)) {
+              _speakersAuxiliary = autoAux;
+            } else if (autoAux == null) {
+              _speakersAuxiliary = null;
+            }
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _pickDate() async {
@@ -126,7 +218,10 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _meetingDate = picked);
+    if (picked != null) {
+      setState(() => _meetingDate = picked);
+      _loadSpeakerTypeLabelForDate(picked);
+    }
   }
 
   SacramentProgram _buildProgram() => SacramentProgram(
@@ -134,12 +229,12 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
         wardName: _wardNameCtrl.text.trim(),
         date: _meetingDate,
         presiding: _presidingCtrl.text.trim(),
-        conducting: _conductingCtrl.text.trim(),
+        conducting: _conducting ?? '',
         acknowledgement: _acknowledgeCtrl.text.trim(),
         announcements:
             _announcements.where((a) => a.trim().isNotEmpty).toList(),
-        chorister: _chorister,
-        pianist: _pianist,
+        chorister: _chorister ?? '',
+        pianist: _pianist ?? '',
         openingHymn: _openingHymnCtrl.text.trim(),
         sacramentHymn: _sacramentHymnCtrl.text.trim(),
         closingHymn: _closingHymnCtrl.text.trim(),
@@ -147,7 +242,7 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
         wardBusiness: _wardBusinessCtrl.text.trim(),
         stakeBusiness: _stakeBusinessCtrl.text.trim(),
         speakers: _speakers,
-        speakersAuxiliary: _speakersAuxiliary,
+        speakersAuxiliary: _speakersAuxiliary ?? '',
         benediction: _benedictionCtrl.text.trim(),
       );
 
@@ -161,77 +256,28 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
     );
   }
 
-  Future<void> _autoFill() async {
-    try {
-      final data = await RotationService(_db).autoPopulateSacrament();
-      setState(() {
-        if (data['date'] != null) {
-          _meetingDate = DateTime.tryParse(data['date']!) ?? _meetingDate;
-        }
-        if (data['wardName'] != null) _wardNameCtrl.text = data['wardName']!;
-        if (data['stakeName'] != null) _stakeNameCtrl.text = data['stakeName']!;
-        if (data['presiding'] != null) _presidingCtrl.text = data['presiding']!;
-        if (data['acknowledgement'] != null) {
-          _acknowledgeCtrl.text = data['acknowledgement']!;
-        }
-        if (data['suggestedSpeakers'] != null) {
-          final names = (data['suggestedSpeakers'] as String).split(',');
-          _speakers = names
-              .where((n) => n.trim().isNotEmpty)
-              .map((n) => Speaker(name: n.trim()))
-              .toList();
-        }
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Auto-filled from rotation rules'),
-            backgroundColor: Color(0xFF2E7D32),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Auto-fill error: $e')),
-        );
-      }
-    }
-  }
-
-  void _testPreview() {
-    final testProgram = SacramentProgram(
-      wardName: 'Pasay 3rd Ward',
-      stakeName: 'Pasay Philippines Stake',
-      date: DateTime.now(),
-      presiding: 'Bishop John Smith',
-      conducting: 'Bro. Carlos Reyes',
-      chorister: 'Sis. Maria Santos',
-      pianist: 'Sis. Ana Cruz',
-      openingHymn: '#2 – The Spirit of God',
-      sacramentHymn: '#169 – Again, Our Dear Assembling Here',
-      closingHymn: '#197 – Lead, Kindly Light',
-      invocation: 'Bro. Jorge Dela Cruz',
-      speakers: [
-        Speaker(name: 'Sis. Elena Reyes', title: 'RS President', topic: 'Faith in Christ'),
-        Speaker(name: 'Bro. Mike Santos', title: 'EQ President', topic: 'Service'),
-      ],
-      speakersAuxiliary: 'Elders Quorum',
-      benediction: 'Sis. Liza Gomez',
-      acknowledgement:
-          'We welcome all visitors. Sacrament meeting is the most important meeting of the week.',
-      announcements: [
-        'Youth activity this Friday at 6 PM.',
-        'Temple trip on the 15th — sign up in the foyer.',
-        'Fast Sunday next week.',
-      ],
-    );
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SacramentPreviewScreen(program: testProgram),
-      ),
-    );
+  void _clear() {
+    setState(() {
+      _stakeNameCtrl.clear();
+      _wardNameCtrl.clear();
+      _presidingCtrl.clear();
+      _acknowledgeCtrl.clear();
+      _openingHymnCtrl.clear();
+      _sacramentHymnCtrl.clear();
+      _closingHymnCtrl.clear();
+      _invocationCtrl.clear();
+      _wardBusinessCtrl.clear();
+      _stakeBusinessCtrl.clear();
+      _benedictionCtrl.clear();
+      _meetingDate = RotationService.nextSacramentDate();
+      _conducting = null;
+      _chorister = null;
+      _pianist = null;
+      _speakersAuxiliary = null;
+      _speakers = [];
+      _announcements = [];
+    });
+    _loadAll();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────
@@ -242,16 +288,21 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final conductorNames = _conductors.map((c) => c.name).toList();
+    final choristerNames = _choristers.map((m) => m.name).toList();
+    final pianistNames = _pianists.map((m) => m.name).toList();
+    final auxiliaryNames = _auxiliaries.map((a) => a.name).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sacrament Meeting'),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: const Color(0xFF2C5282),
         foregroundColor: Colors.white,
         actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.auto_awesome, color: Colors.white),
-            label: const Text('Auto-fill', style: TextStyle(color: Colors.white)),
-            onPressed: _autoFill,
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Clear',
+            onPressed: _clear,
           ),
           IconButton(
             icon: const Icon(Icons.preview),
@@ -265,11 +316,12 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // ── Meeting Details ──────────────────────────────────────
             _sectionHeader('Meeting Details'),
             LabeledField(
               label: 'Stake Name',
               controller: _stakeNameCtrl,
-              hint: 'e.g. Pasay Philippines Stake',
+              hint: 'e.g. Pasay Philippine Stake',
             ),
             LabeledField(
               label: 'Ward Name *',
@@ -280,55 +332,58 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
                   : null,
             ),
             // Date picker
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Meeting Date *',
-                    style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: _pickDate,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(),
-                    child: Text(
-                        DateFormat('MMMM d, yyyy').format(_meetingDate)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
+            _datePicker(),
             LabeledField(
               label: 'Presiding',
               controller: _presidingCtrl,
-              hint: 'e.g. Bishop John Smith',
+              hint: 'e.g. Bishop Sherwin Tan',
             ),
+            // Conducting — DropdownButtonFormField from sacrament conductors
             _dropdownField(
               label: 'Conducting',
-              value: _conductingCtrl.text.isEmpty ? null : _conductingCtrl.text,
-              items: _conductors.map((c) => c.name).toList(),
-              onChanged: (v) => setState(() => _conductingCtrl.text = v ?? ''),
-              allowCustom: true,
-              customController: _conductingCtrl,
+              value: (_conducting != null &&
+                      conductorNames.contains(_conducting))
+                  ? _conducting
+                  : null,
+              items: conductorNames,
+              hint: 'Select conductor…',
+              onChanged: (v) => setState(() => _conducting = v),
             ),
+
+            // ── Music ────────────────────────────────────────────────
             _sectionHeader('Music'),
             _dropdownField(
               label: 'Chorister',
-              value: _chorister.isEmpty ? null : _chorister,
-              items: _choristers.map((m) => m.name).toList(),
-              onChanged: (v) => setState(() => _chorister = v ?? ''),
+              value: (_chorister != null && choristerNames.contains(_chorister))
+                  ? _chorister
+                  : null,
+              items: choristerNames,
+              hint: 'Select chorister…',
+              onChanged: (v) => setState(() => _chorister = v),
             ),
             _dropdownField(
               label: 'Pianist',
-              value: _pianist.isEmpty ? null : _pianist,
-              items: _pianists.map((m) => m.name).toList(),
-              onChanged: (v) => setState(() => _pianist = v ?? ''),
+              value: (_pianist != null && pianistNames.contains(_pianist))
+                  ? _pianist
+                  : null,
+              items: pianistNames,
+              hint: 'Select pianist…',
+              onChanged: (v) => setState(() => _pianist = v),
             ),
             LabeledField(
-                label: 'Opening Hymn', controller: _openingHymnCtrl),
+                label: 'Opening Hymn',
+                controller: _openingHymnCtrl,
+                hint: 'e.g. #2 The Spirit of God'),
             LabeledField(
-                label: 'Sacrament Hymn', controller: _sacramentHymnCtrl),
+                label: 'Sacrament Hymn',
+                controller: _sacramentHymnCtrl,
+                hint: 'e.g. #169 Again, Our Dear…'),
             LabeledField(
-                label: 'Closing Hymn', controller: _closingHymnCtrl),
+                label: 'Closing Hymn',
+                controller: _closingHymnCtrl,
+                hint: 'e.g. #220 Lead, Kindly Light'),
+
+            // ── Program ─────────────────────────────────────────────
             _sectionHeader('Program'),
             LabeledField(
                 label: 'Invocation', controller: _invocationCtrl),
@@ -345,61 +400,60 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
               maxLines: 3,
               maxLength: 400,
             ),
+
+            // ── Speakers ─────────────────────────────────────────────
             _sectionHeader('Speakers'),
-            // Auxiliary dropdown
-            _dropdownField(
-              label: "Speakers' Auxiliary",
-              value: _speakersAuxiliary.isEmpty ? null : _speakersAuxiliary,
-              items: const [
-                'Bishopric',
-                'Elders Quorum',
-                'Relief Society',
-                'Sunday School',
-                'Primary',
-                'Ward Mission & Family History',
-                'Stake leaders',
-              ],
-              onChanged: (v) =>
-                  setState(() => _speakersAuxiliary = v ?? ''),
-            ),
+            if (_speakerTypeLabel.isNotEmpty)
+              SpeakerCycleBadge(label: _speakerTypeLabel),
             SpeakerListEditor(
               speakers: _speakers,
               onChanged: (updated) =>
                   setState(() => _speakers = updated),
             ),
+            _dropdownField(
+              label: "Speakers' Auxiliary",
+              value: (_speakersAuxiliary != null &&
+                      auxiliaryNames.contains(_speakersAuxiliary))
+                  ? _speakersAuxiliary
+                  : null,
+              items: auxiliaryNames,
+              hint: 'Select auxiliary…',
+              onChanged: (v) => setState(() => _speakersAuxiliary = v),
+            ),
+
+            // ── Closing ──────────────────────────────────────────────
             _sectionHeader('Closing'),
             LabeledField(
                 label: 'Benediction', controller: _benedictionCtrl),
+
+            // ── Acknowledgements ──────────────────────────────────────
             _sectionHeader('Acknowledgements'),
             LabeledField(
               label: 'Acknowledgement',
               controller: _acknowledgeCtrl,
               maxLines: 4,
               maxLength: 600,
-              hint: 'Optional notes of thanks or recognition',
+              hint: 'Auto-filled from template',
             ),
+
+            // ── Announcements ─────────────────────────────────────────
             _sectionHeader('Announcements'),
             AnnouncementsEditor(
               announcements: _announcements,
               onChanged: (updated) =>
                   setState(() => _announcements = updated),
             ),
+
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _preview,
               icon: const Icon(Icons.preview),
               label: const Text('Preview & Export'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
+                backgroundColor: const Color(0xFF2C5282),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _testPreview,
-              icon: const Icon(Icons.science),
-              label: const Text('Test Preview (fill with sample data)'),
             ),
             const SizedBox(height: 30),
           ],
@@ -417,7 +471,7 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
           children: [
             Text(title,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: const Color(0xFF2E7D32),
+                      color: const Color(0xFF2C5282),
                       fontWeight: FontWeight.w700,
                     )),
             const Divider(height: 8),
@@ -425,55 +479,48 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
         ),
       );
 
-  /// A dropdown that can also accept free-form text when [allowCustom] is true.
+  Widget _datePicker() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Meeting Date *',
+              style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: _pickDate,
+            child: InputDecorator(
+              decoration: const InputDecoration(),
+              child: Text(DateFormat('MMMM d, yyyy').format(_meetingDate),
+                  style: const TextStyle(fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      );
+
   Widget _dropdownField({
     required String label,
     required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
-    bool allowCustom = false,
-    TextEditingController? customController,
+    String hint = 'Select…',
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 4),
-        if (allowCustom && customController != null)
-          // Free-text field with autocomplete suggestions
-          Autocomplete<String>(
-            initialValue: TextEditingValue(text: customController.text),
-            optionsBuilder: (v) => items
-                .where((i) =>
-                    i.toLowerCase().contains(v.text.toLowerCase()))
-                .toList(),
-            onSelected: (s) {
-              customController.text = s;
-              onChanged(s);
-            },
-            fieldViewBuilder: (ctx, ctrl, node, onFieldSubmitted) =>
-                TextFormField(
-              controller: ctrl,
-              focusNode: node,
-              decoration: const InputDecoration(),
-              onChanged: (v) {
-                customController.text = v;
-                onChanged(v);
-              },
-            ),
-          )
-        else
-          DropdownButtonFormField<String>(
-            initialValue: (value != null && items.contains(value)) ? value : null,
-            items: items
-                .map((i) => DropdownMenuItem(value: i, child: Text(i)))
-                .toList(),
-            onChanged: onChanged,
-            decoration: const InputDecoration(),
-            hint: const Text('Select…'),
-          ),
+        DropdownButtonFormField<String>(
+          value: (value != null && items.contains(value)) ? value : null,
+          items: items
+              .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+              .toList(),
+          onChanged: onChanged,
+          decoration: const InputDecoration(),
+          hint: Text(hint),
+        ),
         const SizedBox(height: 12),
       ],
     );
   }
 }
+
