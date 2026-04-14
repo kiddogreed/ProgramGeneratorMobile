@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background circle -->
+    <circle cx="40" cy="40" r="40" fill="#4a90e2"/>
+    
+    <!-- Music note icon -->
+    <path d="M28 52c0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4-4 1.8-4 4z" fill="white"/>
+    <path d="M44 48c0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4-4 1.8-4 4z" fill="white"/>
+    <rect x="36" y="28" width="2" height="20" fill="white"/>
+    <rect x="48" y="24" width="2" height="20" fill="white"/>
+    <path d="M36 28c0-2 4-4 12-4v2c-6 0-10 1-10 2h-2z" fill="white"/>
+    
+    <!-- Sacrament bread symbol -->
+    <ellipse cx="40" cy="60" rx="12" ry="4" fill="white" opacity="0.8"/>
+    <rect x="34" y="58" width="12" height="4" rx="2" fill="white" opacity="0.8"/>
+</svg>

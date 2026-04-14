@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background circle -->
+    <circle cx="40" cy="40" r="40" fill="#8b4513"/>
+    
+    <!-- Tie/leadership icon -->
+    <!-- Collar -->
+    <path d="M25 35 L40 30 L55 35 L55 40 L25 40 Z" fill="white"/>
+    
+    <!-- Tie -->
+    <path d="M35 40 L40 30 L45 40 L45 55 L42 60 L40 58 L38 60 L35 55 Z" fill="white"/>
+    
+    <!-- Tie pattern -->
+    <circle cx="40" cy="45" r="1.5" fill="#8b4513"/>
+    <circle cx="40" cy="50" r="1.5" fill="#8b4513"/>
+    
+    <!-- Suit lapels -->
+    <path d="M25 40 L30 45 L35 40" fill="none" stroke="white" stroke-width="1.5"/>
+    <path d="M55 40 L50 45 L45 40" fill="none" stroke="white" stroke-width="1.5"/>
+</svg>
