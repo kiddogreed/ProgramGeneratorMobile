@@ -12,7 +12,6 @@ import '../../models/auxiliary.dart';
 import '../../models/agenda_item.dart';
 import '../../utils/rotation_service.dart';
 import '../../widgets/labeled_field.dart';
-import '../../widgets/locked_field_widget.dart';
 import '../../widgets/agenda_item_editor.dart';
 import 'ward_council_preview_screen.dart';
 
@@ -30,12 +29,9 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
   final _db = DatabaseHelper();
 
   late final TextEditingController _wardNameCtrl;
-  late final TextEditingController _welfareCtrl;
-
-  // Locked / auto-populated
-  String _presiding = '';
 
   // Dropdown selections (conductors = bishopric, prayers = auxiliaries)
+  String? _presiding;
   String? _conducting;
   String? _openingPrayer;
   String? _handbookReading;
@@ -43,7 +39,8 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
 
   DateTime _meetingDate = DateTime.now();
   List<AgendaItem> _agendaItems = [];
-  List<Conductor> _conductors = [];
+  List<Conductor> _conductors = [];        // bishopric conductors
+  List<Conductor> _sacramentConductors = []; // for presiding dropdown
   List<Auxiliary> _auxiliaries = [];
   bool _loading = true;
 
@@ -52,11 +49,10 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
     super.initState();
     final p = widget.initial;
     _wardNameCtrl = TextEditingController(text: p?.wardName ?? '');
-    _welfareCtrl = TextEditingController(text: p?.welfare ?? '');
 
     if (p != null) {
       _meetingDate = p.meetingDate;
-      _presiding = p.presiding;
+      _presiding = p.presiding.isEmpty ? null : p.presiding;
       _conducting = p.conducting.isEmpty ? null : p.conducting;
       _openingPrayer = p.openingPrayer.isEmpty ? null : p.openingPrayer;
       _handbookReading = p.handbookReading.isEmpty ? null : p.handbookReading;
@@ -70,13 +66,13 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
   @override
   void dispose() {
     _wardNameCtrl.dispose();
-    _welfareCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadAll() async {
     // Ward Council uses bishopric conductors for Conducting (spec §8)
     final conductors = await _db.getConductors(programType: 'bishopric');
+    final sacramentConductors = await _db.getConductors(programType: 'sacrament');
     final auxiliaries = await _db.getAuxiliaries();
 
     if (widget.initial == null) {
@@ -86,6 +82,7 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
         if (mounted) {
           setState(() {
             _conductors = conductors;
+            _sacramentConductors = sacramentConductors;
             _auxiliaries = auxiliaries;
             if (data['meetingDate'] != null) {
               _meetingDate =
@@ -95,7 +92,8 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
             if (data['wardName'] != null) {
               _wardNameCtrl.text = data['wardName'] as String;
             }
-            _presiding = (data['presiding'] as String?) ?? '';
+            final pres = (data['presiding'] as String?) ?? '';
+            _presiding = sacramentConductors.any((c) => c.name == pres) ? pres : null;
             final cond = data['conducting'] as String? ?? '';
             _conducting =
                 conductors.any((c) => c.name == cond) ? cond : null;
@@ -115,6 +113,7 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
         if (mounted) {
           setState(() {
             _conductors = conductors;
+            _sacramentConductors = sacramentConductors;
             _auxiliaries = auxiliaries;
             _loading = false;
           });
@@ -124,6 +123,7 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
       if (mounted) {
         setState(() {
           _conductors = conductors;
+          _sacramentConductors = sacramentConductors;
           _auxiliaries = auxiliaries;
           _loading = false;
         });
@@ -144,12 +144,12 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
   WardCouncilProgram _buildProgram() => WardCouncilProgram(
         wardName: _wardNameCtrl.text.trim(),
         meetingDate: _meetingDate,
-        presiding: _presiding,
+        presiding: _presiding ?? '',
         conducting: _conducting ?? '',
         openingPrayer: _openingPrayer ?? '',
         handbookReading: _handbookReading ?? '',
         agendaItems: _agendaItems,
-        welfare: _welfareCtrl.text.trim(),
+        welfare: '',
         closingPrayer: _closingPrayer ?? '',
       );
 
@@ -171,6 +171,7 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
     }
 
     final conductorNames = _conductors.map((c) => c.name).toList();
+    final sacramentNames = _sacramentConductors.map((c) => c.name).toList();
     final auxNames = _auxiliaries.map((a) => a.name).toList();
 
     return Scaffold(
@@ -201,7 +202,12 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
             ),
             _datePicker(),
             _header('Leadership'),
-            LockedFieldWidget(label: 'Presiding', value: _presiding),
+            _dropdownField(
+              label: 'Presiding',
+              value: _presiding,
+              items: sacramentNames,
+              onChanged: (v) => setState(() => _presiding = v),
+            ),
             _dropdownField(
               label: 'Conducting *',
               value: _conducting,
@@ -228,12 +234,6 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
               onChanged: (items) => setState(() => _agendaItems = items),
             ),
             _header('Closing'),
-            LabeledField(
-              label: 'Welfare',
-              controller: _welfareCtrl,
-              maxLines: 3,
-              maxLength: 500,
-            ),
             _dropdownField(
               label: 'Closing Prayer',
               value: _closingPrayer,
@@ -305,7 +305,7 @@ class _WardCouncilFormScreenState extends State<WardCouncilFormScreen> {
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: safeValue,
+          initialValue: safeValue,
           decoration: const InputDecoration(),
           hint: const Text('Select…'),
           items: items

@@ -20,7 +20,7 @@ class DocxGenerator {
 
     final encoder = ZipEncoder();
     final bytes = encoder.encode(archive);
-    return Uint8List.fromList(bytes!);
+    return Uint8List.fromList(bytes);
   }
 
   static void _addFile(Archive archive, String path, String xml) {
@@ -85,46 +85,46 @@ class DocxGenerator {
     final body = StringBuffer();
 
     // Header
-    body.writeln(_heading(p.wardName ?? 'Ward Name', size: 28, bold: true, center: true, color: '1B4F8A'));
-    if (p.stakeName != null && p.stakeName!.isNotEmpty) {
-      body.writeln(_paragraph(p.stakeName!, center: true, size: 22));
+    body.writeln(_heading(p.wardName.isEmpty ? 'Ward Name' : p.wardName, size: 28, bold: true, center: true, color: '1B4F8A'));
+    if (p.stakeName.isNotEmpty) {
+      body.writeln(_paragraph(p.stakeName, center: true, size: 22));
     }
     body.writeln(_paragraph('Sacrament Meeting', center: true, bold: true, size: 24));
     body.writeln(_paragraph(_formatDate(p.date.toIso8601String()), center: true, size: 22));
     body.writeln(_separator());
 
     // Presiding / Conducting
-    if (p.presiding != null && p.presiding!.isNotEmpty) {
-      body.writeln(_labelValue('Presiding', p.presiding!));
+    if (p.presiding.isNotEmpty) {
+      body.writeln(_labelValue('Presiding', p.presiding));
     }
-    if (p.conducting != null && p.conducting!.isNotEmpty) {
-      body.writeln(_labelValue('Conducting', p.conducting!));
+    if (p.conducting.isNotEmpty) {
+      body.writeln(_labelValue('Conducting', p.conducting));
     }
 
     // Hymns
-    if (p.openingHymn != null && p.openingHymn!.isNotEmpty) {
-      body.writeln(_labelValue('Opening Hymn', p.openingHymn!));
+    if (p.openingHymn.isNotEmpty) {
+      body.writeln(_labelValue('Opening Hymn', p.openingHymn));
     }
     if (p.invocation.isNotEmpty) {
       body.writeln(_labelValue('Opening Prayer', p.invocation));
     }
-    if (p.sacramentHymn != null && p.sacramentHymn!.isNotEmpty) {
-      body.writeln(_labelValue('Sacrament Hymn', p.sacramentHymn!));
+    if (p.sacramentHymn.isNotEmpty) {
+      body.writeln(_labelValue('Sacrament Hymn', p.sacramentHymn));
     }
 
     // Speakers
-    if (p.speakers != null && p.speakers!.isNotEmpty) {
+    if (p.speakers.isNotEmpty) {
       body.writeln(_sectionTitle('Speakers'));
-      for (final s in p.speakers!) {
+      for (final s in p.speakers) {
         body.writeln(_paragraph(
-          '${s.name}${s.topic != null && s.topic!.isNotEmpty ? " — ${s.topic}" : ""}',
+          '${s.name}${s.topic.isNotEmpty ? " — ${s.topic}" : ""}',
           indent: true,
         ));
       }
     }
 
-    if (p.closingHymn != null && p.closingHymn!.isNotEmpty) {
-      body.writeln(_labelValue('Closing Hymn', p.closingHymn!));
+    if (p.closingHymn.isNotEmpty) {
+      body.writeln(_labelValue('Closing Hymn', p.closingHymn));
     }
     if (p.benediction.isNotEmpty) {
       body.writeln(_labelValue('Closing Prayer', p.benediction));
@@ -137,9 +137,9 @@ class DocxGenerator {
     }
 
     // Announcements
-    if (p.announcements != null && p.announcements!.isNotEmpty) {
+    if (p.announcements.isNotEmpty) {
       body.writeln(_sectionTitle('Announcements'));
-      for (final a in p.announcements!) {
+      for (final a in p.announcements) {
         body.writeln(_paragraph('• $a', indent: true));
       }
     }
@@ -164,7 +164,7 @@ $body
       {int size = 28, bool bold = false, bool center = false, String? color}) {
     final jc = center ? '<w:jc w:val="center"/>' : '';
     final b = bold ? '<w:b/>' : '';
-    final col = color != null ? '<w:color w:val="$color"/>' : '';
+    final col = color == null ? '' : '<w:color w:val="$color"/>';
     return '''    <w:p>
       <w:pPr>$jc</w:pPr>
       <w:r>

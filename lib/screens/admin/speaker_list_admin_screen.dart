@@ -208,11 +208,17 @@ class _SpeakerListAdminScreenState extends State<SpeakerListAdminScreen> {
                                     icon: const Icon(Icons.edit,
                                         color: Colors.blue),
                                     onPressed: () => _showDialog(entry: e),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    iconSize: 22,
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete,
                                         color: Colors.red),
                                     onPressed: () => _delete(e),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    iconSize: 22,
                                   ),
                                 ],
                               ),
@@ -226,7 +232,3 @@ class _SpeakerListAdminScreenState extends State<SpeakerListAdminScreen> {
   }
 }
 
-// Helper extension for InputDecoration hint
-extension on String {
-  String get hint => this;
-}

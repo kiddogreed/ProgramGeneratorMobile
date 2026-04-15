@@ -13,42 +13,62 @@ All data is stored **locally on-device** using SQLite — no server or internet 
 
 | Version | Build | Date | Notes |
 |---|---|---|---|
-| **1.0.0+2** | 2 | April 2026 | Full feature release — see changelog below |
+| **1.1.0+3** | 3 | April 15, 2026 | UI polish, PDF fill, multi-line ward business, form improvements |
+| 1.0.0+2 | 2 | April 2026 | Full feature release |
 | 1.0.0+1 | 1 | April 2026 | Initial release |
 
 ---
 
-## Changelog — v1.0.0+2
+## Changelog — v1.1.0+3 (April 15, 2026)
+
+### UI / Home Screen
+- **Removed cross icon** — replaced `Icons.church` (Material icon with a cross) with the P3 ward building logo (`P3_LOGO.png`). The cross symbol is not used in LDS churches.
+
+### Sacrament PDF
+- **Full-page layout** — PDF content now fills the entire A4 page using distributed `Spacer()` widgets between sections (header, body, speakers, footer). No more large empty bottom half.
+- **Larger text** — label/value font sizes increased from 10–11 pt to 12–13 pt for better readability.
+- **Attendance line** — stays anchored at the bottom-right of the page.
+
+### Sacrament Form
+- **Ward Business multi-line** — field now accepts multiple lines (up to 5 rows). Press Enter to add a new line. Example:
+  ```
+  release: secretary
+  sustain: president
+  ```
+
+### Ward Council Form
+- **Presiding is now a dropdown** — populated from the Sacrament conductors list (bishop, counselors). No longer a free-text field.
+- **Welfare field removed** — the Welfare text box has been removed. Use Agenda Items for welfare topics.
+
+### Bishopric Meeting Form
+- **Callings & Releases removed** — the Callings & Releases text field has been removed from the form and PDF. Use Agenda Items for callings/releases business.
+
+---
+
+## Changelog — v1.0.0+2 (April 2026)
 
 ### PDF
-- **Single-page scalable PDFs** — all three program types (Sacrament, Bishopric, Ward Council) auto-shrink to fit one page using `pw.FittedBox(contain)` + `pw.Spacer()` bottom anchor
+- **Single-page scalable PDFs** — all three program types auto-shrink to fit one page
 - **Correct Sacrament PDF field order** — Date → Presiding → Conducting → Acknowledgement → Announcements → Chorister/Pianist → Opening Hymn → Invocation → Ward/Stake Business → Sacrament Hymn → Reverence → Speakers → Closing Hymn → Benediction → Attendance
-- **Export DOCX removed** — PDF is the sole export format
 
 ### Speaker Rotation
-- **Fast & Testimony** — 1st Sunday is always Fast & Testimony (no speaker)
-- **Stake leaders** — 3rd Sunday label corrected to `Stake leaders`
-- **Bishopric** — 5th Sunday label corrected to `Bishopric`
-- **Cycle slots** — 2nd and 4th Sundays draw from configurable auxiliary cycle lists
-- **Fast & Testimony option in Rules** — cycle slot dropdowns show `— Fast & Testimony (no speaker) —` as first option
+- Fast & Testimony on 1st Sunday, Stake leaders on 3rd, Bishopric on 5th
+- 2nd and 4th Sundays draw from configurable auxiliary cycle lists
 
 ### Management Screens
-- **Auxiliary management** — full CRUD (add / edit / delete) for auxiliaries used in speaker cycle
-- **Auxiliary Admin** — duplicate name check; warns if deleting an auxiliary referenced in rotation
-- **Speaker list admin** — manage the full speaker pool
-- **Hymn & Handbook admin** — manage hymns and handbook readings
+- Full CRUD for Auxiliaries, Speaker list, Hymns, Handbook readings
+- Duplicate name check; warns if deleting auxiliaries referenced in rotation
 
 ### Automation Rules
-- **Bishop Name** — auto-fills Presiding on Sacrament & Bishopric forms
-- **Bishopric preferred day** — full Monday–Sunday dropdown
-- **Speaker cycle base month** — configurable start month for the 5-week cycle
-- **Cycle slot dropdowns** — 2nd (slots 1/2/3) and 4th (slots 1/2/3) Sunday slots configurable from Auxiliaries list
+- Bishop name auto-fills Presiding
+- Bishopric preferred day (Monday–Sunday)
+- Speaker cycle base month, 2nd/4th Sunday slot assignments
 
 ### Other
-- **Save to Downloads** — writes PDF to `/storage/emulated/0/Download/` with runtime permission handling for all Android API levels
-- **Default Data Setup** — one-tap seed of conductors, musicians, and auxiliaries
-- **App icon** — P3 church building logo (all mipmap sizes)
-- **DB v4** — migrated from v3; adds `cycle2_slot1/2/3`, `cycle4_slot1/2/3`, `bishop_name` columns to `ward_config`
+- Save to Downloads (PDF → `/storage/emulated/0/Download/`)
+- Default Data Setup — one-tap seed of conductors, musicians, auxiliaries
+- App icon — P3 church building logo
+- DB v4 — `cycle2_slot1/2/3`, `cycle4_slot1/2/3`, `bishop_name` columns
 
 ---
 
@@ -58,12 +78,12 @@ All data is stored **locally on-device** using SQLite — no server or internet 
 |---|---|
 | **3 program types** | Sacrament Meeting, Ward Council, Bishopric Meeting |
 | **Full forms** | All fields matching the reference Java back-end models |
-| **PDF export** | Single-page scalable, auto-shrink, correct field order |
+| **PDF export** | Single-page scalable, full-page fill, correct field order |
 | **Save to Downloads** | Saves PDF directly to device Downloads folder |
 | **Print** | Native Android print via `printing` package |
 | **Share** | Share PDF via Android share sheet |
 | **Musician management** | Add / edit / delete Choristers and Pianists |
-| **Conductor management** | Per meeting type with round-robin rotation (no consecutive repeats) |
+| **Conductor management** | Per meeting type with round-robin rotation |
 | **Auxiliary management** | Full CRUD; used as cycle slot labels |
 | **Speaker list** | Full CRUD speaker pool |
 | **Hymn / Handbook admin** | Manage hymn and handbook reading libraries |
@@ -91,7 +111,7 @@ lib/
 │   ├── musician.dart
 │   ├── conductor.dart
 │   ├── auxiliary.dart
-│   ├── ward_config.dart             # All automation rules (v4 fields)
+│   ├── ward_config.dart
 │   └── saved_program.dart
 ├── screens/
 │   ├── home_screen.dart
@@ -107,7 +127,7 @@ lib/
 │   ├── history/
 │   │   └── history_screen.dart
 │   ├── rules/
-│   │   └── rules_screen.dart        # Automation Rules + cycle slot config
+│   │   └── rules_screen.dart
 │   └── admin/
 │       ├── auxiliary_admin_screen.dart
 │       ├── musician_admin_screen.dart
@@ -117,9 +137,9 @@ lib/
 │       ├── handbook_admin_screen.dart
 │       └── seed_defaults_screen.dart
 ├── utils/
-│   ├── pdf_generator.dart           # Single-page scalable PDFs (all types)
-│   ├── rotation_service.dart        # Scheduling logic (speakers, conductors, prayers)
-│   └── program_storage.dart         # Save/load program history
+│   ├── pdf_generator.dart
+│   ├── rotation_service.dart
+│   └── program_storage.dart
 └── widgets/
     ├── labeled_field.dart
     ├── speaker_list_editor.dart
@@ -129,54 +149,156 @@ lib/
 
 ---
 
-## How to Build
+## Development Guide
 
 ### Prerequisites
-- Flutter SDK ≥ 3.0
-- Android SDK / connected Android device or emulator
-- JDK 17+
-- Keystore: `upload-keystore.jks` at project root; `android/key.properties` must be present
 
-### Commands
+| Tool | Version |
+|---|---|
+| Flutter SDK | ≥ 3.0 |
+| Dart SDK | ≥ 3.0 |
+| Android SDK | API 21+ (Android 5.0+) |
+| JDK | 17+ |
+| Android emulator or physical device | — |
+
+### 1. Get Dependencies
 
 ```bash
-# Get dependencies
 flutter pub get
-
-# Run in debug mode on connected device
-flutter run
-
-# Build release APK (fat APK)
-flutter build apk --release
-
-# Build split APKs (smaller, recommended for direct install)
-flutter build apk --release --split-per-abi
 ```
 
-For the split build, use `app-arm64-v8a-release.apk` on most modern Android phones.
+### 2. Run on Android Emulator
 
-### Using the build script
+Start an Android emulator from Android Studio (AVD Manager), then:
+
+```bash
+# List available devices
+flutter devices
+
+# Run in debug mode (picks connected device/emulator automatically)
+flutter run
+
+# Run on a specific device by ID
+flutter run -d <device-id>
+
+# Example
+flutter run -d emulator-5554
+```
+
+The app will build, install, and launch on the emulator automatically.
+
+### 3. Hot Reload & Hot Restart
+
+While `flutter run` is active in your terminal:
+
+| Key | Action | When to use |
+|---|---|---|
+| `r` | **Hot Reload** | UI/widget changes — rebuilds widget tree instantly (~300 ms) |
+| `R` | **Hot Restart** | State/logic changes — restarts the app from scratch (~1.5 s) |
+| `q` | **Quit** | Stop the app and exit flutter run |
+| `h` | **Help** | List all available commands |
+
+> **Tip:** Hot reload preserves app state (e.g. form data) — use it for layout tweaks.  
+> Hot restart clears all state — use it after changing business logic, models, or database migrations.
+
+### 4. Build Release APK
+
+#### Option A — Using the PowerShell build script (recommended)
 
 ```powershell
 .\Build-Installer.ps1
 ```
 
-Outputs `installer/p3ProgramGenerator.apk` (signed, fat APK, ~56 MB).
+Outputs `installer/p3ProgramGenerator.apk` (signed fat APK).
 
-### App ID
-`com.church.programgenerator`
+#### Option B — Flutter CLI
+
+```bash
+# Fat APK (all architectures, ~56 MB)
+flutter build apk --release
+
+# Split APKs (smaller per-architecture builds)
+flutter build apk --release --split-per-abi
+```
+
+For split builds, install the correct ABI for your device:
+- `app-arm64-v8a-release.apk` — most modern phones (64-bit ARM)
+- `app-armeabi-v7a-release.apk` — older 32-bit ARM phones
+- `app-x86_64-release.apk` — x86 emulators
+
+Output location: `build/app/outputs/flutter-apk/`
+
+#### Keystore Setup (required for signed APK)
+
+Ensure `android/key.properties` is present:
+
+```properties
+storePassword=<your-password>
+keyPassword=<your-password>
+keyAlias=upload
+storeFile=../upload-keystore.jks
+```
+
+The keystore file `upload-keystore.jks` must be at the project root. See `android/key.properties.template` for the template.
+
+### 5. Versioning Convention
+
+Version format: `major.minor.patch+buildNumber`
+
+| Component | When to increment |
+|---|---|
+| `major` | Complete rewrite or breaking change |
+| `minor` | New features or significant improvements |
+| `patch` | Bug fixes or small tweaks |
+| `buildNumber` | Every APK build (auto-increments) |
+
+**Current version**: `1.1.0+3`
+
+Update in `pubspec.yaml`:
+
+```yaml
+version: 1.1.0+3
+```
 
 ---
 
 ## Releases
 
-### v1.0.0+2 (April 2026)
+### v1.1.0+3 (April 15, 2026)
 - APK: `installer/p3ProgramGenerator.apk`
-- Also at: `build/app/outputs/flutter-apk/p3ProgramGenerator.apk`
+- Changes: Logo icon fix, full-page PDF, multi-line ward business, Ward Council presiding dropdown, Bishopric form cleanup
+
+### v1.0.0+2 (April 2026)
+- APK: (archived)
+- Full feature release
 
 ### v1.0.0+1 (April 2026)
 - Initial working release
 
 ---
 
+## Roadmap
+
+### Near-term
+- [ ] **Sacrament attendance tracking** — tap-to-increment counter stored per program
+- [ ] **Ward Council auxiliary report** — select which auxiliary is presenting each week
+- [ ] **PDF font size setting** — user-configurable font scale per program type
+- [ ] **Dark mode** — system-aware dark/light theme toggle
+
+### Mid-term
+- [ ] **Program templates** — save a partially-filled form as a reusable template
+- [ ] **Email export** — send PDF directly via email without sharing manually
+- [ ] **Multiple wards** — support more than one ward configuration in the same app
+- [ ] **Backup & restore** — export/import the full SQLite database as a JSON or ZIP archive
+- [ ] **Anniversary/holiday banners** — auto-add holiday notice on program PDFs (Christmas, Easter)
+
+### Long-term
+- [ ] **iOS support** — port to iPhone/iPad via the existing Flutter codebase
+- [ ] **Web version** — deploy as a Progressive Web App for in-browser use
+- [ ] **Cloud sync** — optional Firebase sync so bishop's secretary can share programs with other devices
+- [ ] **Bishopric approval workflow** — mark programs as "pending review" / "approved" before printing
+
+---
+
 For full technical details, see [FLUTTER_APP_REFERENCE.md](FLUTTER_APP_REFERENCE.md).
+

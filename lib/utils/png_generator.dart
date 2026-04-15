@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, deprecated_member_use_from_same_package
 // utils/png_generator.dart
 // Provides PNG/screenshot export for the Ward Council program widget.
 // Uses the screenshot package to capture a rendered widget as PNG bytes,
@@ -40,24 +41,23 @@ class PngGenerator {
             const SizedBox(height: 8),
 
             // Body rows
-            if (p.presiding != null && p.presiding!.isNotEmpty)
-              _row('Presiding', p.presiding!),
-            if (p.openingPrayer != null && p.openingPrayer!.isNotEmpty)
-              _row('Opening Prayer', p.openingPrayer!),
-            if (p.closingPrayer != null && p.closingPrayer!.isNotEmpty)
-              _row('Closing Prayer', p.closingPrayer!),
+            if (p.presiding.isNotEmpty)
+              _row('Presiding', p.presiding),
+            if (p.openingPrayer.isNotEmpty)
+              _row('Opening Prayer', p.openingPrayer),
+            if (p.closingPrayer.isNotEmpty)
+              _row('Closing Prayer', p.closingPrayer),
 
-            if (p.agendaItems != null && p.agendaItems!.isNotEmpty) ...[
+            if (p.agendaItems.isNotEmpty) ...[
               const SizedBox(height: 8),
               _sectionTitle('Agenda'),
-              for (final a in p.agendaItems!)
+              for (final a in p.agendaItems)
                 _agendaRow(a.title, ''),
             ],
 
-            if (p.handbookReading != null &&
-                p.handbookReading!.isNotEmpty) ...[
+            if (p.handbookReading.isNotEmpty) ...[
               const SizedBox(height: 8),
-              _row('Handbook Reading', p.handbookReading!),
+              _row('Handbook Reading', p.handbookReading),
             ],
 
             const SizedBox(height: 8),
@@ -79,7 +79,7 @@ class PngGenerator {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          p.wardName ?? 'Ward Name',
+          p.wardName.isEmpty ? 'Ward Name' : p.wardName,
           style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -89,11 +89,10 @@ class PngGenerator {
           'Ward Council Meeting',
           style: TextStyle(fontSize: 14, color: Color(0xFF6A1B9A)),
         ),
-        if (p.meetingDate != null)
-          Text(
-            _formatDate(p.meetingDate!.toIso8601String()),
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+        Text(
+          _formatDate(p.meetingDate.toIso8601String()),
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
       ],
     );
   }

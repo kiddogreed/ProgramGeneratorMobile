@@ -251,6 +251,13 @@ class _RulesScreenState extends State<RulesScreen> {
                             'Use {OTHER_CONDUCTORS} for sacrament members, '
                             '{BISHOPRIC_OTHERS} for bishopric members.',
                       ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 4),
+                        child: Text(
+                          'Conducting Cycle: Sacrament conductors rotate weekly in the order they appear in the Conductors list. The next conductor is auto-filled when creating a new program and can always be changed.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -269,7 +276,7 @@ class _RulesScreenState extends State<RulesScreen> {
                                   Theme.of(context).textTheme.labelLarge),
                           const SizedBox(height: 4),
                           DropdownButtonFormField<String>(
-                            value: _bishopricPreferredDay,
+                            initialValue: _bishopricPreferredDay,
                             decoration: const InputDecoration(),
                             items: const [
                               DropdownMenuItem(value: 'Monday',    child: Text('Monday')),
@@ -416,12 +423,14 @@ class _RulesScreenState extends State<RulesScreen> {
               children: [
                 Icon(icon, color: color, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
                   ),
                 ),
               ],
@@ -452,7 +461,8 @@ class _RulesScreenState extends State<RulesScreen> {
           ),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: safeValue,
+              isExpanded: true,
+              initialValue: safeValue,
               decoration: const InputDecoration(
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),

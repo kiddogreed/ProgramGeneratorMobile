@@ -172,10 +172,14 @@ class RotationService {
 
     final date = nextSacramentDate();
 
-    // Suggested conductor (round-robin, no DB write on load)
+    // Suggested conductor (round-robin, advance pointer immediately)
     final suggested = getSuggestedConductor(
         sacramentConductors, cfg.lastSacramentConductorId);
     final conducting = suggested?.name ?? '';
+    if (suggested?.id != null) {
+      await _db.saveWardConfig(
+          cfg.copyWith(lastSacramentConductorId: suggested!.id));
+    }
 
     // Presiding: use bishopName from config; fallback to first "Bishop*" conductor
     final presiding = cfg.bishopName.isNotEmpty
@@ -210,13 +214,6 @@ class RotationService {
       'speakerTypeLabel': speakerTypeLabel,
       'speakerAuxiliary': speakerAuxiliary,
     };
-  }
-
-  /// Called on export — advances the sacrament conductor round-robin.
-  Future<void> markSacramentConductorUsed(int conductorId) async {
-    final cfg = await _db.getWardConfig();
-    await _db.saveWardConfig(
-        cfg.copyWith(lastSacramentConductorId: conductorId));
   }
 
   // ── Bishopric auto-populate ──────────────────────────────────────────

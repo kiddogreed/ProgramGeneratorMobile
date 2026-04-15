@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, deprecated_member_use_from_same_package
 // screens/sacrament/sacrament_preview_screen.dart
 // Shows a formatted on-screen preview and provides Save / Export / Share.
 
@@ -11,7 +12,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../models/sacrament_program.dart';
 import '../../utils/pdf_generator.dart';
-import '../../utils/docx_generator.dart';
 import '../../utils/program_storage.dart';
 
 class SacramentPreviewScreen extends StatelessWidget {
@@ -49,8 +49,8 @@ class SacramentPreviewScreen extends StatelessWidget {
         if (!status.isGranted) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Storage permission needed to save to Downloads'),
+              const SnackBar(
+                content: Text('Storage permission needed to save to Downloads'),
                 action: SnackBarAction(
                   label: 'Settings',
                   onPressed: openAppSettings,
@@ -112,27 +112,6 @@ class SacramentPreviewScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _exportDocx(BuildContext context) async {
-    try {
-      final bytes = DocxGenerator.generate(program);
-      final dir = await getTemporaryDirectory();
-      final dateStr = DateFormat('yyyy-MM-dd').format(program.date);
-      final file = File('${dir.path}/sacrament_$dateStr.docx');
-      await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path,
-            mimeType:
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
-        subject: 'Sacrament Meeting – ${program.wardName} – $dateStr',
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('DOCX export error: $e')),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -306,15 +285,6 @@ class SacramentPreviewScreen extends StatelessWidget {
     );
   }
 
-  Widget _row2(String l1, String v1, String l2, String v2) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            Expanded(child: _labelVal(l1, v1)),
-            Expanded(child: _labelVal(l2, v2)),
-          ],
-        ),
-      );
 
   Widget _labelVal(String label, String value) {
     if (value.isEmpty) return const SizedBox.shrink();

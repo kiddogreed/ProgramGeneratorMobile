@@ -11,7 +11,6 @@ import 'admin/conductor_admin_screen.dart';
 import 'admin/hymn_admin_screen.dart';
 import 'admin/handbook_admin_screen.dart';
 import 'admin/auxiliary_admin_screen.dart';
-import 'admin/speaker_list_admin_screen.dart';
 import 'admin/seed_defaults_screen.dart';
 import 'rules/rules_screen.dart';
 
@@ -38,7 +37,12 @@ class HomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    const Icon(Icons.church, size: 56, color: Colors.white),
+                    Image.asset(
+                      'assets/images/P3_LOGO.png',
+                      height: 64,
+                      width: 64,
+                      color: Colors.white,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Create a Program',
@@ -178,18 +182,6 @@ class HomeScreen extends StatelessWidget {
                     builder: (_) => const HandbookAdminScreen()),
               ),
             ),
-            const SizedBox(height: 10),
-            _NavTile(
-              icon: Icons.people,
-              title: 'Speaker Rotation',
-              subtitle: 'Manage the sacrament speaker rotation list',
-              color: const Color(0xFF2E7D32),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SpeakerListAdminScreen()),
-              ),
-            ),
 
             const SizedBox(height: 20),
             const _SectionLabel(label: 'Setup'),
@@ -224,6 +216,33 @@ class HomeScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 24),
+
+            // Footer / app info
+            const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  Divider(color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text(
+                    '© 2025–2026 Pasay 3rd Ward',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  Text(
+                    'Church Program Generator • All rights reserved',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Developed by Russel D.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

@@ -177,11 +177,17 @@ class _ConductorAdminScreenState extends State<ConductorAdminScreen>
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => _edit(c),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 22,
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline,
                       color: Colors.red),
                   onPressed: () => _delete(c),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 22,
                 ),
               ],
             ),

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, deprecated_member_use_from_same_package
 // screens/bishopric/bishopric_preview_screen.dart
 // On-screen preview for Bishopric Meeting with Save / Print / Share.
 
@@ -41,8 +42,7 @@ class BishopricPreviewScreen extends StatelessWidget {
     await file.writeAsBytes(bytes);
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'application/pdf')],
-      subject:
-          'Bishopric Meeting – ${program.wardName} – $dateStr',
+      subject: 'Bishopric Meeting – ${program.wardName} – $dateStr',
     );
   }
 
@@ -94,8 +94,14 @@ class BishopricPreviewScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Card(
-              child: Padding(
+            LayoutBuilder(
+              builder: (context, constraints) => FittedBox(
+                fit: BoxFit.fitWidth,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: 595,
+                  child: Card(
+                    child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -140,7 +146,10 @@ class BishopricPreviewScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
+            ),     // Card
+                ),  // SizedBox
+              ),    // FittedBox
+            ),      // LayoutBuilder
           ],
         ),
       ),

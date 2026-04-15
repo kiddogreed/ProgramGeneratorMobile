@@ -159,11 +159,17 @@ class _MusicianAdminScreenState extends State<MusicianAdminScreen>
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => _edit(m),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 22,
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline,
                       color: Colors.red),
                   onPressed: () => _delete(m),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 22,
                 ),
               ],
             ),

@@ -390,9 +390,10 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
             LabeledField(
               label: 'Ward Business',
               controller: _wardBusinessCtrl,
-              maxLines: 3,
-              maxLength: 400,
-              hint: 'Callings, releases, etc.',
+              maxLines: 5,
+              maxLength: 600,
+              keyboardType: TextInputType.multiline,
+              hint: 'e.g. release: secretary\nsustain: president',
             ),
             LabeledField(
               label: 'Stake Business',
@@ -510,7 +511,7 @@ class _SacramentFormScreenState extends State<SacramentFormScreen> {
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: (value != null && items.contains(value)) ? value : null,
+          initialValue: (value != null && items.contains(value)) ? value : null,
           items: items
               .map((i) => DropdownMenuItem(value: i, child: Text(i)))
               .toList(),

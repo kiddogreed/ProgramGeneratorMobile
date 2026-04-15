@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, deprecated_member_use_from_same_package
 // screens/ward_council/ward_council_preview_screen.dart
 // On-screen preview for Ward Council Meeting with Save / Print / Share / PNG.
 
@@ -51,8 +52,7 @@ class _WardCouncilPreviewScreenState extends State<WardCouncilPreviewScreen> {
     await file.writeAsBytes(bytes);
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'application/pdf')],
-      subject:
-          'Ward Council – ${widget.program.wardName} – $dateStr',
+      subject: 'Ward Council – ${widget.program.wardName} – $dateStr',
     );
   }
 
@@ -131,8 +131,14 @@ class _WardCouncilPreviewScreenState extends State<WardCouncilPreviewScreen> {
             // Screenshot wrapper captures the program card as PNG
             Screenshot(
               controller: _screenshotCtrl,
-              child: Card(
-                child: Padding(
+              child: LayoutBuilder(
+                builder: (context, constraints) => FittedBox(
+                  fit: BoxFit.fitWidth,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: 595,
+                    child: Card(
+                      child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -178,6 +184,9 @@ class _WardCouncilPreviewScreenState extends State<WardCouncilPreviewScreen> {
                 ),    // Column
               ),      // Padding
             ),        // Card
+                  ),  // SizedBox
+                ),    // FittedBox
+              ),      // LayoutBuilder
           ),          // Screenshot
           ],          // outer Column children
         ),            // outer Column

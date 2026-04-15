@@ -2,7 +2,6 @@
 // Builds a PDF document from any of the three program types and returns
 // a Uint8List suitable for printing or sharing.
 
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -43,70 +42,72 @@ class PdfGenerator {
     final widgets = [
       _churchHeader(p.stakeName, p.wardName, 'Sacrament Program', '',
           _green, logo: logo),
-      _labelValue('Date', dateStr),
-      _labelValue('Presiding', p.presiding),
-      _labelValue('Conducting', p.conducting),
+      _sacLabelValue('Date', dateStr),
+      _sacLabelValue('Presiding', p.presiding),
+      _sacLabelValue('Conducting', p.conducting),
       if (p.acknowledgement.isNotEmpty)
-        _labelValue('Acknowledgement', p.acknowledgement),
+        _sacLabelValue('Acknowledgement', p.acknowledgement),
       if (p.announcements.where((a) => a.isNotEmpty).isNotEmpty) ...[
-        _sectionTitle('Announcements', _green),
+        _sacSectionTitle('Announcements', _green),
         ...p.announcements
             .where((a) => a.isNotEmpty)
             .toList()
             .asMap()
             .entries
             .map((e) => pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 2),
+                  padding: const pw.EdgeInsets.only(bottom: 3),
                   child: pw.Text('${e.key + 1}. ${e.value}',
-                      style: const pw.TextStyle(fontSize: 10)),
+                      style: const pw.TextStyle(fontSize: 12)),
                 )),
       ],
+      pw.Spacer(),
       _divider(),
       if (p.chorister.isNotEmpty || p.pianist.isNotEmpty)
         pw.Center(
           child: pw.Text(
             'Chorister: ${p.chorister}   |   Pianist: ${p.pianist}',
-            style: const pw.TextStyle(fontSize: 11),
+            style: const pw.TextStyle(fontSize: 13),
           ),
         ),
-      pw.SizedBox(height: 4),
-      _labelValue('Opening Hymn', p.openingHymn),
-      _labelValue('Invocation', p.invocation),
+      pw.SizedBox(height: 6),
+      _sacLabelValue('Opening Hymn', p.openingHymn),
+      _sacLabelValue('Invocation', p.invocation),
       if (p.wardBusiness.isNotEmpty)
-        _labelValue('Ward Business', p.wardBusiness),
+        _sacLabelValue('Ward Business', p.wardBusiness),
       if (p.stakeBusiness.isNotEmpty)
-        _labelValue('Stake Business', p.stakeBusiness),
-      _labelValue('Sacrament Hymn', p.sacramentHymn),
+        _sacLabelValue('Stake Business', p.stakeBusiness),
+      _sacLabelValue('Sacrament Hymn', p.sacramentHymn),
       pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(vertical: 4),
+        padding: const pw.EdgeInsets.symmetric(vertical: 5),
         child: pw.Text(
           'Thank you for your reverence during the sacrament, and thank you to the priesthood brethren who bless and passed the bread and water. You may now join your family.',
           style: pw.TextStyle(
-              fontSize: 9,
+              fontSize: 11,
               fontStyle: pw.FontStyle.italic,
               color: PdfColors.grey600),
         ),
       ),
+      pw.Spacer(),
       if (p.speakers.isNotEmpty) ...[
-        _sectionTitle('Speakers:', _green),
+        _sacSectionTitle('Speakers:', _green),
         ...p.speakers.asMap().entries.map((e) => pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 3),
+              padding: const pw.EdgeInsets.only(bottom: 4),
               child: pw.Text(
                 '${_ordinal(e.key + 1)} speaker: ${e.value.name}',
-                style: const pw.TextStyle(fontSize: 10),
+                style: const pw.TextStyle(fontSize: 13),
               ),
             )),
-        pw.SizedBox(height: 4),
+        pw.SizedBox(height: 6),
       ],
-      _labelValue('Closing Hymn', p.closingHymn),
-      _labelValue('Benediction', p.benediction),
-      _divider(),
       pw.Spacer(),
+      _sacLabelValue('Closing Hymn', p.closingHymn),
+      _sacLabelValue('Benediction', p.benediction),
+      _divider(),
       pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.end,
         children: [
           pw.Text('Sacrament Attendance: ________',
-              style: const pw.TextStyle(fontSize: 10)),
+              style: const pw.TextStyle(fontSize: 12)),
         ],
       ),
     ];
@@ -149,8 +150,6 @@ class PdfGenerator {
             ],
           )),
       _divider(),
-      if (p.callingsAndReleases.isNotEmpty)
-        _labelValue('Callings & Releases', p.callingsAndReleases),
       _labelValue('Closing Prayer', p.closingPrayer),
       pw.Spacer(),
     ];
@@ -321,6 +320,40 @@ class PdfGenerator {
       pw.Expanded(child: _labelValue(l2, v2)),
     ]);
   }
+
+  // Larger label/value for sacrament single-page layout
+  static pw.Widget _sacLabelValue(String label, String value) {
+    if (value.isEmpty) return pw.SizedBox(height: 0);
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 5),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 140,
+            child: pw.Text(label,
+                style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.grey700)),
+          ),
+          pw.Expanded(
+            child: pw.Text(value, style: const pw.TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _sacSectionTitle(String title, PdfColor color) =>
+      pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 5),
+        child: pw.Text(title,
+            style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                color: color)),
+      );
 
   static String _ordinal(int n) {
     const suffixes = ['th', 'st', 'nd', 'rd'];

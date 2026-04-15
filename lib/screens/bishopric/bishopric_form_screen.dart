@@ -29,7 +29,6 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
   final _db = DatabaseHelper();
 
   late final TextEditingController _wardNameCtrl;
-  late final TextEditingController _callingsCtrl;
 
   // Locked / auto-populated
   String _presiding = '';
@@ -50,7 +49,6 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
     super.initState();
     final p = widget.initial;
     _wardNameCtrl = TextEditingController(text: p?.wardName ?? '');
-    _callingsCtrl = TextEditingController(text: p?.callingsAndReleases ?? '');
 
     if (p != null) {
       _meetingDate = p.meetingDate;
@@ -69,7 +67,6 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
   @override
   void dispose() {
     _wardNameCtrl.dispose();
-    _callingsCtrl.dispose();
     super.dispose();
   }
 
@@ -143,7 +140,7 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
         openingPrayer: _openingPrayer ?? '',
         handbookSpiritual: _handbookSpiritual ?? '',
         agendaItems: _agendaItems,
-        callingsAndReleases: _callingsCtrl.text.trim(),
+        callingsAndReleases: '',
         closingPrayer: _closingPrayer ?? '',
       );
 
@@ -221,12 +218,6 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
               onChanged: (items) => setState(() => _agendaItems = items),
             ),
             _header('Closing'),
-            LabeledField(
-              label: 'Callings & Releases',
-              controller: _callingsCtrl,
-              maxLines: 4,
-              maxLength: 500,
-            ),
             _dropdownField(
               label: 'Closing Prayer',
               value: _closingPrayer,
@@ -298,7 +289,7 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
         Text(label, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: safeValue,
+          initialValue: safeValue,
           decoration: const InputDecoration(),
           hint: const Text('Select…'),
           items: items
