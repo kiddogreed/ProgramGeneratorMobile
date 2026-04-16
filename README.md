@@ -5,7 +5,7 @@ All data is stored **locally on-device** using SQLite — no server or internet 
 
 - **Ward**: Pasay 3rd Ward, Pasay Philippine Stake
 - **App ID**: `com.church.programgenerator`
-- **APK**: `installer/p3ProgramGenerator.apk`
+- **APK**: `installer/p3ProgramGenerator_v1.2.0.apk`
 
 ---
 
@@ -13,9 +13,31 @@ All data is stored **locally on-device** using SQLite — no server or internet 
 
 | Version | Build | Date | Notes |
 |---|---|---|---|
+| **1.2.0+4** | 4 | April 16, 2026 | Voice input (agenda, announcements, meeting notes), center alignment fix, acknowledgement template cleanup |
 | **1.1.0+3** | 3 | April 15, 2026 | UI polish, PDF fill, multi-line ward business, form improvements |
-| 1.0.0+2 | 2 | April 2026 | Full feature release |
-| 1.0.0+1 | 1 | April 2026 | Initial release |
+| **1.0.0+2** | 2 | April 2026 | Full feature release |
+| **1.0.0+1** | 1 | April 2026 | Initial release |
+
+---
+
+## Changelog — v1.2.0+4 (April 16, 2026)
+
+### Features & Improvements
+- **Offline voice input everywhere**
+  - Agenda items (Bishopric & Ward Council) — tap mic to dictate
+  - Sacrament Announcements — mic per row
+  - New Meeting Notes screen — voice dictation, text export
+- **Meeting Notes screen** — from home menu, take notes by typing or voice, export as .txt
+- **Agenda section centered** — Bishopric preview agenda header and items now center-aligned
+- **Dropdown overflow fix** — all dropdowns in Bishopric and Ward Council forms use `isExpanded: true` (no more 40px overflow)
+- **Acknowledgement template cleaned** — removed hardcoded names, now only uses template tokens
+
+### Fixes
+- Fixed: DropdownButtonFormField overflow in Bishopric and Ward Council forms
+- Fixed: Agenda preview alignment (centered)
+- Fixed: Announcements editor now supports voice input per row
+- Fixed: Meeting Notes screen voice input and export
+- Fixed: Acknowledgement template no longer has redundant hardcoded names
 
 ---
 
@@ -252,20 +274,24 @@ Version format: `major.minor.patch+buildNumber`
 | `patch` | Bug fixes or small tweaks |
 | `buildNumber` | Every APK build (auto-increments) |
 
-**Current version**: `1.1.0+3`
+**Current version**: `1.2.0+4`
 
 Update in `pubspec.yaml`:
 
 ```yaml
-version: 1.1.0+3
+version: 1.2.0+4
 ```
 
 ---
 
 ## Releases
 
+### v1.2.0+4 (April 16, 2026)
+- APK: `installer/p3ProgramGenerator_v1.2.0.apk`
+- Changes: Voice input (agenda, announcements, meeting notes), center alignment fix, acknowledgement template cleanup
+
 ### v1.1.0+3 (April 15, 2026)
-- APK: `installer/p3ProgramGenerator.apk`
+- APK: `installer/p3ProgramGenerator_v1.1.0.apk`
 - Changes: Logo icon fix, full-page PDF, multi-line ward business, Ward Council presiding dropdown, Bishopric form cleanup
 
 ### v1.0.0+2 (April 2026)
@@ -284,7 +310,7 @@ version: 1.1.0+3
 - [ ] **Ward Council auxiliary report** — select which auxiliary is presenting each week
 - [ ] **PDF font size setting** — user-configurable font scale per program type
 - [ ] **Dark mode** — system-aware dark/light theme toggle
-- [ ] **Offline Voice Input for Agenda** — Use device mic and free local AI (offline speech-to-text) to add agenda items in Bishopric Meeting
+- [x] **Offline Voice Input for Agenda** — Use device mic and free local AI (offline speech-to-text) to add agenda items in Bishopric Meeting, Ward Council, and Sacrament announcements
 
 ### Mid-term
 - [ ] **Program templates** — save a partially-filled form as a reusable template

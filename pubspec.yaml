@@ -2,7 +2,7 @@ name: church_program_generator
 description: Church Program Generator - Mobile App for LDS meeting programs
 publish_to: "none"
 
-version: 1.1.0+3
+version: 1.2.0+4
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -31,6 +31,9 @@ dependencies:
 
   # Material icons & cupertino
   cupertino_icons: ^1.0.8
+
+  # Offline speech recognition
+  speech_to_text: ^7.3.0
 
   # PNG / screenshot export
   screenshot: ^3.0.0

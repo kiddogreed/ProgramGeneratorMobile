@@ -126,14 +126,12 @@ class BishopricPreviewScreen extends StatelessWidget {
                           program.handbookSpiritual),
                     _divider(),
                     if (program.agendaItems.isNotEmpty) ...[
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Agenda',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: accent)),
-                      ),
+                      const Text('Agenda',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: accent)),
                       const SizedBox(height: 6),
                       ...program.agendaItems
                           .map((item) => _agendaTile(item)),
@@ -159,14 +157,16 @@ class BishopricPreviewScreen extends StatelessWidget {
   Widget _agendaTile(AgendaItem item) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(item.title,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                     fontSize: 13, fontWeight: FontWeight.bold)),
             ...item.details.map((d) => Padding(
-                  padding: const EdgeInsets.only(left: 12, top: 2),
-                  child: Text('• $d',
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(d,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 12)),
                 )),
           ],

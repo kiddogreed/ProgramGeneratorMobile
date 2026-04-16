@@ -2,6 +2,8 @@
 // Widget for managing a dynamic list of agenda items (Bishopric/Ward Council).
 
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 import '../models/agenda_item.dart';
 
 class AgendaItemEditor extends StatefulWidget {
@@ -85,6 +87,10 @@ class _AgendaItemTile extends StatefulWidget {
 class _AgendaItemTileState extends State<_AgendaItemTile> {
   late final TextEditingController _titleCtrl;
   late List<TextEditingController> _detailCtrl;
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechReady = false;
+  bool _isListeningTitle = false;
+  int? _isListeningDetailIdx;
 
   @override
   void initState() {
@@ -93,6 +99,91 @@ class _AgendaItemTileState extends State<_AgendaItemTile> {
     _detailCtrl = widget.item.details
         .map((d) => TextEditingController(text: d))
         .toList();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      return; // _speechReady stays false; mic buttons will be disabled
+    }
+    _speechReady = await _speech.initialize(
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (mounted) {
+            setState(() {
+              _isListeningTitle = false;
+              _isListeningDetailIdx = null;
+            });
+          }
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          setState(() {
+            _isListeningTitle = false;
+            _isListeningDetailIdx = null;
+          });
+        }
+      },
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _listenAgendaTitle() async {
+    if (!_speechReady) return;
+    if (_speech.isListening) {
+      await _speech.stop();
+      setState(() => _isListeningTitle = false);
+      return;
+    }
+    setState(() => _isListeningTitle = true);
+    await _speech.listen(
+      onResult: (val) {
+        if (val.recognizedWords.isNotEmpty) {
+          setState(() {
+            _titleCtrl.text = val.recognizedWords;
+          });
+          _notify();
+          if (val.finalResult) {
+            setState(() => _isListeningTitle = false);
+          }
+        }
+      },
+      listenMode: stt.ListenMode.dictation,
+      partialResults: true,
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      cancelOnError: true,
+    );
+  }
+
+  Future<void> _listenAgendaDetail(int idx) async {
+    if (!_speechReady) return;
+    if (_speech.isListening) {
+      await _speech.stop();
+      setState(() => _isListeningDetailIdx = null);
+      return;
+    }
+    setState(() => _isListeningDetailIdx = idx);
+    await _speech.listen(
+      onResult: (val) {
+        if (val.recognizedWords.isNotEmpty) {
+          setState(() {
+            _detailCtrl[idx].text = val.recognizedWords;
+          });
+          _notify();
+          if (val.finalResult) {
+            setState(() => _isListeningDetailIdx = null);
+          }
+        }
+      },
+      listenMode: stt.ListenMode.dictation,
+      partialResults: true,
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 3),
+      cancelOnError: true,
+    );
   }
 
   @override
@@ -141,9 +232,25 @@ class _AgendaItemTileState extends State<_AgendaItemTile> {
                 ),
                 const Spacer(),
                 IconButton(
+                  icon: Icon(_isListeningTitle ? Icons.mic : Icons.mic_none),
+                  color: _isListeningTitle ? Colors.red : (_speechReady ? null : Colors.grey),
+                  tooltip: !_speechReady
+                      ? 'Microphone unavailable'
+                      : _isListeningTitle
+                          ? 'Tap to stop'
+                          : 'Fill title by voice',
+                  onPressed: _speechReady ? _listenAgendaTitle : null,
+                  iconSize: 20,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
+                ),
+                IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: widget.onRemove,
                   tooltip: 'Remove item',
+                  iconSize: 20,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(6),
                 ),
               ],
             ),
@@ -165,9 +272,29 @@ class _AgendaItemTileState extends State<_AgendaItemTile> {
                       ),
                     ),
                     IconButton(
+                      icon: Icon(_isListeningDetailIdx == e.key
+                          ? Icons.mic
+                          : Icons.mic_none),
+                      color: _isListeningDetailIdx == e.key
+                          ? Colors.red
+                          : (_speechReady ? null : Colors.grey),
+                      tooltip: !_speechReady
+                          ? 'Microphone unavailable'
+                          : _isListeningDetailIdx == e.key
+                              ? 'Tap to stop'
+                              : 'Fill detail by voice',
+                      onPressed: _speechReady ? () => _listenAgendaDetail(e.key) : null,
+                      iconSize: 20,
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(6),
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.remove_circle_outline,
                           color: Colors.orange),
                       onPressed: () => _removeDetail(e.key),
+                      iconSize: 20,
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(6),
                     ),
                   ],
                 )),

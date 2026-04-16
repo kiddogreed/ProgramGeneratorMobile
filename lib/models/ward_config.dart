@@ -177,10 +177,7 @@ class WardConfig {
         stakeName: m['stake_name'] as String? ?? 'Pasay Philippine Stake',
         wardName: m['ward_name'] as String? ?? 'Pasay 3rd Ward',
         acknowledgementTemplate: m['acknowledgement_template'] as String? ??
-            'Acknowledge {OTHER_CONDUCTORS}, Bro. Adrian Matro (wrd Clrk), '
-                'Johanne Perlas (Asst. Clrk. rec). Bro. Norman Oliva (Asst. Clrk. fin), '
-                'John Russelle Domingo (wrd exc. Secr.), Genesis Ferareza (wrd exc. Asst. Secr.). '
-                '{BISHOPRIC_OTHERS} To all Visitors and Stake Leaders (Welcome).',
+            'Acknowledge {OTHER_CONDUCTORS}. {BISHOPRIC_OTHERS} To all Visitors and Stake Leaders (Welcome).',
         sacramentTime: m['sacrament_time'] as String? ?? '09:00',
         bishopricPreferredDay:
             m['bishopric_preferred_day'] as String? ?? 'Thursday',
