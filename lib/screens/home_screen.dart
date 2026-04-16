@@ -6,6 +6,7 @@ import 'sacrament/sacrament_form_screen.dart';
 import 'bishopric/bishopric_form_screen.dart';
 import 'ward_council/ward_council_form_screen.dart';
 import 'history/history_screen.dart';
+import 'notes/meeting_notes_screen.dart';
 import 'admin/musician_admin_screen.dart';
 import 'admin/conductor_admin_screen.dart';
 import 'admin/hymn_admin_screen.dart';
@@ -102,6 +103,18 @@ class HomeScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const BishopricFormScreen()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _NavTile(
+              icon: Icons.edit_note,
+              title: 'Meeting Notes',
+              subtitle: 'Take notes or dictate by voice, export as text',
+              color: const Color(0xFF00838F),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const MeetingNotesScreen()),
               ),
             ),
 

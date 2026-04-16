@@ -290,6 +290,7 @@ class _BishopricFormScreenState extends State<BishopricFormScreen> {
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           initialValue: safeValue,
+          isExpanded: true,
           decoration: const InputDecoration(),
           hint: const Text('Select…'),
           items: items
