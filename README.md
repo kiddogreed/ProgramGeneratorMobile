@@ -284,6 +284,7 @@ version: 1.1.0+3
 - [ ] **Ward Council auxiliary report** — select which auxiliary is presenting each week
 - [ ] **PDF font size setting** — user-configurable font scale per program type
 - [ ] **Dark mode** — system-aware dark/light theme toggle
+- [ ] **Offline Voice Input for Agenda** — Use device mic and free local AI (offline speech-to-text) to add agenda items in Bishopric Meeting
 
 ### Mid-term
 - [ ] **Program templates** — save a partially-filled form as a reusable template
